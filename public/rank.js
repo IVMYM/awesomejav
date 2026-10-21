@@ -71,7 +71,31 @@
     const ranked = pushBack(ok.filter(i => !used.has(K(i))).sort((a, b) => sc(b) - sc(a))).slice(0, 40);
     return { hotPicks, related, carItems, newest, ranked, used, hidden, viewedHidden, pen };
   }
-  const api = { GENERIC, W, normCode, namesOf, specificTags, buildProfile, penalty, buckets };
+  /** 热门 = this week's hottest across the WHOLE archive (data.json + every 精选 work).
+   * opt as buckets() plus week: {CODE:{s,src,d,wk}} from hot_week.json (snapshots of the last 7 days).
+   * Returns {week: ranked works that appear on a current-week list (weekly lists outrank daily-only),
+   *          rest: everything else, fallback order (cover, heat, date)}. Same 踩/已浏览 filtering as home. */
+  function weekHot(all, opt) {
+    opt = opt || {};
+    const dis = opt.dislikes || new Set(), seenV = opt.viewed || new Set(), P = opt.profile, isF = opt.isFollowedName || (() => false);
+    const hasCover = opt.hasCover || (i => !!i.cover), heat = opt.heat || new Map(), wk = opt.week || {};
+    const K = i => normCode(i.code) || String(i.vid);
+    const wmap = new Map(); for (const c in wk) wmap.set(normCode(c), wk[c]);
+    const seen = new Set(), ok = []; let hidden = 0, viewedHidden = 0;
+    for (const i of all) {
+      const k = K(i); if (seen.has(k)) continue; seen.add(k);
+      if (seenV.has(k)) { viewedHidden++; continue; }
+      if (dis.has(k) || i.suppressed || penalty(i, P, isF) >= W.hard) { hidden++; continue; }
+      ok.push(i);
+    }
+    const ws = i => wmap.get(K(i));
+    const week = ok.filter(ws).sort((a, b) => { const A = ws(a), B = ws(b);
+      return (B.wk - A.wk) || (B.s - A.s) || (hasCover(b) - hasCover(a)); });
+    const sc = i => (hasCover(i) ? 1000 : 0) + (heat.get(i.code) || 0) + Math.max(0, (Date.parse(i.date) || 0) / 1e11);
+    const rest = ok.filter(i => !ws(i)).sort((a, b) => sc(b) - sc(a));
+    return { week, rest, hidden, viewedHidden, wscore: ws };
+  }
+  const api = { GENERIC, W, normCode, namesOf, specificTags, buildProfile, penalty, buckets, weekHot };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rank = api;
 })(typeof window !== 'undefined' ? window : globalThis);

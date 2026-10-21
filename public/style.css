@@ -254,3 +254,22 @@ img.broken{display:none!important}
 .ag-foot{display:flex;gap:8px;justify-content:center;padding:2px 12px 0}
 .ag-foot:empty{display:none}
 .aglist{padding-top:4px}
+/* NSFW: blurred until tapped once */
+.nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nz>img{filter:blur(18px);-webkit-filter:blur(18px)}
+.nz.on{cursor:inherit}
+.nz.on>img{filter:none;-webkit-filter:none}
+.nz .nzl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.6);background:rgba(0,0,0,.18);pointer-events:none;user-select:none}
+.nz .nzl small{font-size:10px;font-weight:500;letter-spacing:0;opacity:.85}
+.nz.on .nzl{display:none}
+.nz.mini .nzl{font-size:8px;letter-spacing:0}.nz.mini .nzl small{display:none}
+.fwork>.nz{width:120px;height:80px;flex-shrink:0;border-radius:8px}
+.fwork>.nz img{border-radius:0}
+.detail #dgal-wrap>.nz{height:auto}
+.car .slide .nz{position:absolute;inset:0}
+.car .slide .nz .nzl{padding-bottom:28px}
+/* 本周热门 rank badges */
+.wk-rank{position:absolute;left:6px;bottom:6px;z-index:3;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--pink);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.wk-badge{position:absolute;right:6px;bottom:6px;z-index:3;padding:1px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;pointer-events:none;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sec-sub{font-size:11px;color:var(--muted)}
+.car .slide .cap{pointer-events:none}

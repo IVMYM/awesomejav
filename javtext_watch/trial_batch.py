@@ -136,6 +136,9 @@ rep={"date":NOW,"prefs":{"names":sorted(names),"top_tags":top},"sources":src_sta
  "hot":[{"code":i['code'],"title":i['title'][:40],"actresses":i.get('actresses_list'),"src":i['hot']['src'],"score":i['hot']['score'],"tags":i['hot'].get('tags',[]),"cover":i.get('cover_src'),"samples":len(i.get('samples') or [])} for i in picked],
  "dislike_filter":D.summary(),"viewed_skipped_n":len(D.filtered.get('热门·已看过',[]))+len(D.filtered.get('关注相关·已看过',[])),"dislike_filtered_n":D.total(),"dislike_note":f"本批因踩过滤 {D.total()} 条",
  "total_items":len(out),"hot_candidates":len(hot),"excluded_repeat":len([c for c in hot if c in excl])}
+try:  # 本周热门快照 -> public/hot_week.json (site 热门 tab ranks the whole archive by it)
+    import hot_week as HW; _hw=HW.build(HW.snapshot()); rep['hot_week']={"codes":len(_hw['ranks']),"snapshots":_hw['snapshots']}
+except Exception as e: rep['hot_week']='err '+str(e)[:80]
 json.dump(rep,open(REP+'trial_batch.json','w'),ensure_ascii=False,indent=1)
 print(json.dumps(rep,ensure_ascii=False,indent=1))
 print(f"本批因踩过滤 {D.total()} 条",D.filtered if D.filtered else '',flush=True)

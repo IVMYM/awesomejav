@@ -32,10 +32,29 @@ function imgTag(src,extra='',fb=''){
   const err=fb
     ?`onerror="this.onerror=null;this.src='${esc(fb)}';this.removeAttribute('data-fb')"`
     :`onerror="this.onerror=null;this.classList.add('broken');this.removeAttribute('src')"`;
-  return `<img ${load} decoding="async" src="${esc(src)}" alt="" ${err} ${extra}>`;
+  return nz(`<img ${load} decoding="async" src="${esc(src)}" alt="" ${err} ${extra}>`);
+}
+/** NSFW: every work image is blurred + labelled until tapped once (per image, per page view). */
+const nz=(img,cls='')=>`<span class="nz${cls?' '+cls:''}">${img}<b class="nzl">NSFW<small>点击查看</small></b></span>`;
+function setupNsfw(){
+  let x0=0,y0=0,moved=false;
+  const down=e=>{const t=e.touches?e.touches[0]:e;x0=t.clientX;y0=t.clientY;moved=false};
+  const mv=e=>{const t=e.touches?e.touches[0]:e;if(Math.abs(t.clientX-x0)>10||Math.abs(t.clientY-y0)>10)moved=true};
+  document.addEventListener('touchstart',down,{passive:true,capture:true});
+  document.addEventListener('touchmove',mv,{passive:true,capture:true});
+  document.addEventListener('mousedown',down,true);
+  document.addEventListener('mousemove',e=>{if(e.buttons)mv(e)},true);
+  document.addEventListener('click',e=>{
+    const z=e.target&&e.target.closest&&e.target.closest('.nz:not(.on)');
+    if(!z||moved)return;
+    if(e.target.closest('button[data-fav],button[data-disl],.slide-del,.dthumb'))return;
+    e.preventDefault();e.stopPropagation();
+    z.classList.add('on');
+    const k=z.dataset.k;if(k!=null)$$(`.nz[data-k="${k}"]`).forEach(x=>x.classList.add('on'));
+  },true);
 }
 
-let items=[],favs=[],samplesMap={},timer,homeTab='rec',retHash='#/',favShown={},driveCfg={url:'https://drive.google.com/drive/folders/15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderId:'15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderName:'番号截图'};
+let hotWeek=null,items=[],favs=[],samplesMap={},timer,homeTab='rec',retHash='#/',favShown={},driveCfg={url:'https://drive.google.com/drive/folders/15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderId:'15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderName:'番号截图'};
 const viewStore=new Map(); // hashKey -> {frag, scrollY, homeTab, galCtl}
 let lastViewKey=null;
 function viewKey(h){
@@ -203,7 +222,7 @@ function slideHtml(sl,k,code){
   const del=sl.kind==='mine'?`<button type="button" class="slide-del" data-del="${esc(sl.id)}" aria-label="删除">×</button>`:'';
   return `<div class="dslide" data-kind="${esc(sl.kind)}" ${sl.id?`data-id="${esc(sl.id)}"`:''}>
       ${badge}${del}
-      <img loading="${k?'lazy':'eager'}" decoding="async" src="${esc(sl.src)}" alt="${esc(code)} ${k+1}" onerror="this.onerror=null;this.style.opacity=.2">
+      ${nz(`<img loading="${k?'lazy':'eager'}" decoding="async" src="${esc(sl.src)}" alt="${esc(code)} ${k+1}" onerror="this.onerror=null;this.style.opacity=.2">`).replace('<span class="nz"',`<span class="nz" data-k="g${k}"`)}
     </div>`;
 }
 
@@ -310,18 +329,21 @@ function homeBuckets(heat){
 function pageRecommend(){
   const {carItems,related,newest}=homeBuckets();
   const car=carItems.length?`<div class="car" id="car"><div class="track">${carItems.map((i,k)=>`<a class="slide" data-code="${esc(normCode(i.code))}" href="#/v/${i.vid}">${imgTag(thumb(i.cover),k?'':'loading="eager"',full(i.cover))}<div class="cap"><b>${esc(i.code)}</b>${esc(short(i.title,40))}</div></a>`).join('')}</div><div class="dots">${carItems.map((_,k)=>`<i data-k="${k}"></i>`).join('')}</div></div>`:'';
-  const usedHome=new Set([...carItems,...related,...newest].map(i=>normCode(i.code)));
-  const groups=featuredGroups({home:true,exclude:usedHome});
-  const featured=groups.length?`<div class="sec"><div class="sec-h"><h2>精选 · 按演员</h2><a href="#/fav">全部 ›</a></div>${groups.map(g=>agroupHtml(g,{home:true})).join('')}</div>`:'';
   const relSec=related.length?`<div class="sec"><div class="sec-h"><h2>关注相关</h2></div><div class="vgrid">${related.map(vcard).join('')}</div></div>`:'';
-  return car+featured+relSec+`<div class="sec" data-main="1"><div class="sec-h"><h2>最新上架</h2></div><div class="vgrid">${newest.map(vcard).join('')||emptyHomeHint()}</div></div>`;
+  return car+relSec+`<div class="sec" data-main="1"><div class="sec-h"><h2>最新上架</h2></div><div class="vgrid">${newest.map(vcard).join('')||emptyHomeHint()}</div></div>`;
 }
 function pageHot(){
   const heat=new Map();
   favs.forEach(f=>f.works.forEach(w=>{if(w.code)heat.set(w.code,(heat.get(w.code)||0)+Math.min(f.works.length,200))}));
-  const {hotPicks,ranked}=homeBuckets(heat);
-  const hotSec=hotPicks.length?`<div class="sec"><div class="sec-h"><h2>本期热门 · javdb/missav</h2></div><div class="vgrid">${hotPicks.slice(0,20).map(vcard).join('')}</div></div>`:'';
-  return hotSec+`<div class="sec" data-main="1"><div class="sec-h"><h2>热门作品</h2></div><div class="vgrid">${ranked.map(vcard).join('')||emptyHomeHint()}</div></div>`;
+  // whole archive: library + every 精选 work (deduped by 番号), ranked by this week's lists
+  const all=dedupeByCode(items.concat(...favs.map(f=>f.works||[])));
+  const {week,rest,wscore}=Rank.weekHot(all,Object.assign(dislikeCtx(),{heat,week:(hotWeek&&hotWeek.ranks)||{}}));
+  const tag=i=>{const w=wscore(i);return w?`<span class="wk-badge">${esc(w.src.filter(x=>/周/.test(x))[0]||w.src[0]||'')}</span>`:''};
+  const wcard=(i,k)=>vcard(i).replace('<div class="thumb">',`<div class="thumb"><span class="wk-rank">${k+1}</span>${tag(i)}`);
+  const span=hotWeek&&hotWeek.snapshots&&hotWeek.snapshots.length?`${hotWeek.snapshots[0].slice(5)}~${hotWeek.snapshots[hotWeek.snapshots.length-1].slice(5)}`:'';
+  const weekSec=`<div class="sec" data-main="1"><div class="sec-h"><h2>本周热门 · 全库</h2><span class="sec-sub">${hotWeek?`javdb/missav 周榜 ${esc(span)} · ${week.length} 部`:'加载中…'}</span></div><div class="vgrid">${week.map(wcard).join('')||emptyHomeHint()}</div></div>`;
+  const restSec=rest.length?`<div class="sec"><div class="sec-h"><h2>更多作品</h2><span class="sec-sub">本周未上榜</span></div><div class="vgrid">${rest.slice(0,30).map(vcard).join('')}</div></div>`:'';
+  return weekSec+restSec;
 }
 function emptyHomeHint(){
   const n=Auth.viewed().length;
@@ -469,7 +491,7 @@ function followingPage(){
   const slugs=Auth.follows();
   const list=slugs.map(s=>resolveActress(s)||favs.find(f=>f.slug===s)).filter(Boolean);
   if(!list.length){
-    $('#app').innerHTML=`<div class="empty"><div class="big">👀</div><p>还没有关注的女优</p><p style="font-size:12px">去「推荐」里打开精选女优页，点「关注」</p><a class="btn btn-pink" href="#/" style="margin-top:16px">去首页看看</a></div>`;
+    $('#app').innerHTML=`<div class="empty"><div class="big">👀</div><p>还没有关注的女优</p><p style="font-size:12px">在作品详情页点演员名，或在「我的 · 精选女优」里点「关注」</p><a class="btn btn-pink" href="#/" style="margin-top:16px">去首页看看</a></div>`;
     return;
   }
   $('#app').innerHTML=`<div class="sec"><div class="sec-h"><h2>我的关注</h2><span style="font-size:12px;color:var(--muted)">${list.length} 人</span></div>
@@ -488,7 +510,7 @@ function offlinePage(){
 function mePage(){
   setTab('me');clearInterval(timer);stopGalAuto();chip();
   const u=Auth.current();
-  $('#app').innerHTML=`<div class="me-head"><div class="uname">${esc(u)}</div><div class="hint">数据仅保存在本机浏览器</div></div>
+  $('#app').innerHTML=`<div class="me-head"><div class="uname">${esc(u)}</div><div class="hint">数据保存在云端 · 换设备登录同一账号不丢</div></div>
     <div class="me-menu">
       <a href="#/me/favorites"><span>⭐ 收藏夹</span><span class="arr">${Auth.favorites().length} ›</span></a>
       <a href="#/me/viewed"><span>🕘 已浏览</span><span class="arr">${Auth.viewed().length} ›</span></a>
@@ -615,7 +637,7 @@ function favPage(slug){
   const backHref=f.local?'javascript:history.back()':'#/fav';
   const backLabel=f.local?'← 返回':'← 精选女优';
   $('#app').innerHTML=`<div class="page"><a class="back" href="${backHref}">${backLabel}</a>
-    <div class="actor-hero">${hero?`<img decoding="async" loading="eager" src="${esc(hero)}" alt="${esc(f.name)}" onerror="this.onerror=null;this.classList.add('broken')">`:'<div class="actor-hero-ph">暂无封面</div>'}</div>
+    <div class="actor-hero">${hero?nz(`<img decoding="async" loading="eager" src="${esc(hero)}" alt="${esc(f.name)}" onerror="this.onerror=null;this.classList.add('broken')">`):'<div class="actor-hero-ph">暂无封面</div>'}</div>
     <div class="page-h"><div><h1>${esc(f.name)}${f.kind==='male'?' <span class="mbadge">男优</span>':''}${f.local?' <span class="badge">专辑</span>':''}</h1>
     <div class="sub">${esc((f.aliases||[]).join(' / ')||(f.local?'由作品自动生成':''))} · ${cnt}</div></div>
     <button class="btn btn-sm ${on?'btn-pink':'btn-outline'}" data-follow="${esc(f.slug)}">${on?'已关注':'关注'}</button></div>
@@ -778,10 +800,10 @@ async function renderDetailGallery(i){
   try{if(Auth.current()&&typeof Uploads!=='undefined')userRows=await Uploads.list(Auth.current(),i.code)}catch(_){}
   const slides=gallerySlides(i,userRows);
   if(!slides.length){
-    wrap.innerHTML=hasCover(i)?`<img class="cover" decoding="async" src="${esc(full(i.cover))}" alt="${esc(i.code)}" onerror="this.onerror=null;this.style.display='none'">`:'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
+    wrap.innerHTML=hasCover(i)?nz(`<img class="cover" decoding="async" src="${esc(full(i.cover))}" alt="${esc(i.code)}" onerror="this.onerror=null;this.style.display='none'">`):'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
     _galCtl=null;return;
   }
-  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张"><img loading="lazy" decoding="async" src="${esc(sl.src)}" alt=""></button>`).join('')}</div>`:'';
+  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<img loading="lazy" decoding="async" src="${esc(sl.src)}" alt="">`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`).join('')}</div>`:'';
   wrap.innerHTML=`<div class="dgallery" id="dgal">
       <div class="dtrack">${slides.map((sl,k)=>slideHtml(sl,k,i.code)).join('')}</div>
       <div class="dcounter"><span id="dcur">1</span>/${slides.length}</div>
@@ -873,6 +895,7 @@ $('#q').oninput=()=>{
 onhashchange=route;
 setupGate();
 setupSwipeBack();
+setupNsfw();
 
 function setupSwipeBack(){
   let x0=0,y0=0,on=false;
@@ -930,9 +953,10 @@ async function boot(){
   Promise.all([
     fetchJson('fav.json?t='+Date.now(),20000).then(f=>{favs=f.actresses||[];const h=location.hash||'';if(h.startsWith('#/fav')||h.startsWith('#/v/')||h.startsWith('#/me')){try{route()}catch(_){}}}).catch(()=>{favs=favs||[]}),
     fetchJson('samples.json?t='+Date.now(),12000).then(sm=>{samplesMap=sm.samples||{};}).catch(()=>{}),
+    fetchJson('hot_week.json?t='+Date.now(),10000).then(w=>{hotWeek=w&&w.ranks?w:{ranks:{},snapshots:[]}}).catch(()=>{hotWeek={ranks:{},snapshots:[]}}),
     fetchJson('drive.json?t='+Date.now(),8000).then(dr=>{if(dr&&dr.folderId)driveCfg=dr}).catch(()=>{}),
   ]).then(()=>{
-    // soft refresh home once so 精选女优 appears (invalidate cache)
+    // soft refresh home once so 热门 (fav works + hot_week) is complete (invalidate cache)
     const h=location.hash||'#/';
     if(h==='#'||h==='#/'||h===''){
       bumpView('#/');bumpView(viewKey('#/'));lastViewKey=null;
