@@ -1,11 +1,64 @@
-# JAV档案馆 (awesomejav)
+# JAV档案馆（awesomejav）
 
-Static SPA (`public/`) + Vercel serverless API (`api/`), user data in Vercel Blob.
+一个面向手机浏览的个人影片档案站：自动收集新上架作品，按关注的演员和偏好标签整理，支持收藏、关注、不感兴趣和已浏览记录，数据在多台设备间云端同步。
 
-- `public/` front-end: `index.html`, `app.js`, `auth.js`, `style.css`
-- `api/` serverless functions: login / register / me / upload / feed-prefs
-- `scrape.py`, `dedupe.py`, `deploy.py`, `sync_drive_uploads.py`: data pipeline and deploy scripts
-- `javtext_watch/`: recommendation preference scripts
+线上地址：<https://jav.xxznote.eu.org>（访问需年满 18 岁）
 
-Images (covers / thumbs / samples) and data JSON are intentionally not in this repo.
-Required env: `BLOB_READ_WRITE_TOKEN` (Vercel Blob).
+## 主要功能
+
+### 浏览与发现
+- **首页推荐**：展示最新上架作品，按「踩过」的偏好自动降权，减少不想看的内容（`public/rank.js`）。
+- **精选 · 按演员归档**：精选作品按演员分组展示，方便集中浏览。
+- **作品详情页**（`#/v/<番号>`）：封面、番号、标题、演员、片商、系列、标签、发售日期，以及剧照图集。
+- **演员专辑**（`#/fav/<演员>`）：查看某位演员的全部作品，每部都能点进详情。
+- **已浏览自动隐藏**：看过的作品不再出现在首页，统一放到「我的 › 已浏览」。
+
+### 个人功能（需登录）
+- **注册 / 登录**：账号密码登录，手机端登录长期有效，不会自动过期。
+- **收藏**：一键收藏作品，点击即时响应，后台同步到云端。
+- **关注演员**（`#/following`）：关注后优先推荐该演员的新作品。
+- **不感兴趣**：对作品点「减少推荐」，系统会学习你的偏好（演员、系列、片商、标签），之后少推类似内容；可在「我的 › 不感兴趣」中查看或撤销。
+- **已浏览记录**：自动记录看过的作品，在「我的 › 已浏览」中查看。
+- **上传截图**：可为作品上传自己的截图，单张不超过 3MB，每个番号最多 40 张，存储在 Vercel Blob。
+- **离线提示**：网络不可用时显示离线页面。
+
+### 数据更新
+- `scrape.py`：从 javtext / javtxt 等镜像抓取新上架作品，生成作品数据和封面。
+- `dedupe.py`：作品去重。
+- `javtext_watch/`：读取用户的关注、偏好、不感兴趣和已浏览记录，生成个性化推荐，已看过和不感兴趣的作品会被跳过。
+- `sync_drive_uploads.py`：把 Google Drive 中的截图同步进站点图集并生成缩略图。
+- `deploy.py`：打包并部署到 Vercel（务必使用 `--no-scrape`，否则会先触发抓取）。
+
+## 技术架构
+
+| 部分 | 说明 |
+|------|------|
+| 前端 | 纯静态单页应用（`public/index.html`、`app.js`、`auth.js`、`style.css`），基于 hash 路由，适配手机屏幕 |
+| 后端 | Vercel Serverless Functions（`api/`）：`register`、`login`、`logout`、`me`、`upload`、`feed-prefs` |
+| 存储 | Vercel Blob：用户记录 `users/{name}/…json`（保留最近 5 个版本）、会话 `sessions/{token}.json`、用户上传的截图 |
+| 同步 | 收藏、关注、不感兴趣、已浏览先本地即时生效，再通过串行队列在后台写入云端，失败自动重试并提示 |
+| 部署 | Vercel，自定义域名 `jav.xxznote.eu.org` |
+
+## 目录结构
+
+```
+api/              Serverless 接口（登录、注册、个人数据、上传、推荐偏好）
+public/           前端页面与脚本
+javtext_watch/    个性化推荐脚本
+scrape.py         新作品抓取
+dedupe.py         去重
+deploy.py         部署脚本
+sync_drive_uploads.py  Drive 截图同步
+vercel.json       Vercel 配置
+```
+
+## 环境变量
+
+| 变量 | 用途 |
+|------|------|
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob 读写 |
+| `FEED_KEY` | 保护 `/api/feed-prefs` 推荐偏好接口 |
+
+## 说明
+
+本仓库只包含代码和配置。封面、缩略图、剧照等图片以及作品数据 JSON 都不入库，已在 `.gitignore` 中排除。
