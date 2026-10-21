@@ -1,0 +1,18 @@
+# 不上传图片和数据
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.svg
+public/covers/
+public/thumbs/
+public/samples/
+public/*.json
+!public/vercel.json
+data/
+inbox/
+backup-*/
+__pycache__/
+*.log
+.env*
