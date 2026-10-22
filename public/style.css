@@ -54,8 +54,9 @@ img{display:block;max-width:100%}
 .auth-switch a{color:var(--pink);font-weight:600}
 
 /* home tabs */
-.htabs{display:flex;gap:20px;padding:10px 16px 0;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:var(--nav-h);z-index:30}
-.htabs a{padding:8px 2px 10px;font-size:15px;color:var(--muted);position:relative;font-weight:500}
+.htabs{display:flex;gap:16px;padding:10px 16px 0;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:var(--nav-h);z-index:30;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.htabs::-webkit-scrollbar{display:none}
+.htabs a{padding:8px 2px 10px;font-size:15px;color:var(--muted);position:relative;font-weight:500;flex:0 0 auto;white-space:nowrap}
 .htabs a.on{color:var(--text);font-weight:700}
 .htabs a.on::after{content:"";position:absolute;left:20%;right:20%;bottom:0;height:3px;border-radius:2px;background:var(--pink)}
 
@@ -273,3 +274,69 @@ img.broken{display:none!important}
 .wk-badge{position:absolute;right:6px;bottom:6px;z-index:3;padding:1px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;pointer-events:none;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sec-sub{font-size:11px;color:var(--muted)}
 .car .slide .cap{pointer-events:none}
+
+/* ---------- 摇一摇 · 水果机 ---------- */
+.slot-page{padding:12px 14px 24px}
+.slot-intro{font-size:12px;color:var(--muted);text-align:center;margin:4px 0 14px}
+.slot-machine{position:relative;max-width:360px;margin:0 auto 16px}
+.slot-chrome{
+  background:linear-gradient(160deg,#ff8fb3 0%,var(--pink) 40%,#e45a82 100%);
+  border-radius:18px;padding:14px 14px 18px;
+  box-shadow:0 8px 0 #c44a6e,0 12px 24px rgba(228,90,130,.35),inset 0 1px 0 rgba(255,255,255,.35);
+  border:2px solid rgba(255,255,255,.35);
+}
+.slot-title{text-align:center;color:#fff;font-weight:800;letter-spacing:3px;font-size:13px;
+  text-shadow:0 1px 0 rgba(0,0,0,.2);margin-bottom:10px}
+.slot-window{position:relative;display:flex;gap:6px;background:#1a1a1e;border-radius:12px;
+  padding:10px 8px;overflow:hidden;box-shadow:inset 0 0 0 3px #2a2a30,inset 0 6px 16px rgba(0,0,0,.55);
+  height:76px}
+.slot-reel{flex:1;height:56px;margin:auto 0;overflow:hidden;background:linear-gradient(#fff,#f6f6f8);
+  border-radius:8px;position:relative;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.slot-reel::before,.slot-reel::after{content:"";position:absolute;left:0;right:0;z-index:2;pointer-events:none;height:14px}
+.slot-reel::before{top:0;background:linear-gradient(rgba(0,0,0,.18),transparent)}
+.slot-reel::after{bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.18))}
+.slot-strip{display:flex;flex-direction:column;will-change:transform}
+.slot-strip span{height:56px;display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;flex-shrink:0}
+.slot-strip.spinning{animation:slotspin .45s linear infinite}
+@keyframes slotspin{from{transform:translateY(0)}to{transform:translateY(-168px)}} /* 3*56 */
+.slot-line{position:absolute;left:6px;right:6px;top:50%;height:2px;margin-top:-1px;
+  background:rgba(251,114,153,.55);box-shadow:0 0 8px rgba(251,114,153,.7);pointer-events:none;z-index:3}
+.slot-lights{display:flex;justify-content:center;gap:8px;margin-top:12px}
+.slot-lights i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.55);
+  box-shadow:0 0 6px rgba(255,255,255,.6);animation:slotblink 1.2s ease-in-out infinite}
+.slot-lights i:nth-child(2){animation-delay:.15s}.slot-lights i:nth-child(3){animation-delay:.3s}
+.slot-lights i:nth-child(4){animation-delay:.45s}.slot-lights i:nth-child(5){animation-delay:.6s}
+.slot-lights i:nth-child(6){animation-delay:.75s}
+.slot-machine.spinning .slot-lights i{animation-duration:.35s;background:#fff}
+.slot-machine.win .slot-lights i{background:#ffe566;box-shadow:0 0 10px #ffe566;animation:none}
+@keyframes slotblink{0%,100%{opacity:.45;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
+.slot-btn{display:block;margin:16px auto 0;width:88px;height:88px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffd0de,#FB7299 55%,#d94872);
+  box-shadow:0 6px 0 #b83b5a,0 10px 20px rgba(184,59,90,.35),inset 0 2px 4px rgba(255,255,255,.45);
+  color:#fff;font-weight:800;font-size:22px;letter-spacing:2px;position:relative;
+  transition:transform .12s,box-shadow .12s;-webkit-tap-highlight-color:transparent}
+.slot-btn .slot-btn-knob{display:block;line-height:1}
+.slot-btn:active,.slot-btn.pull{transform:translateY(4px);box-shadow:0 2px 0 #b83b5a,0 4px 10px rgba(184,59,90,.3)}
+.slot-btn:disabled{opacity:.7;cursor:wait}
+.slot-win{margin-top:8px;animation:slotpop .35s ease}
+@keyframes slotpop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.slot-win-flash{text-align:center;font-weight:800;font-size:16px;color:var(--pink);margin-bottom:10px;
+  animation:slotflash .6s ease}
+@keyframes slotflash{0%,100%{transform:scale(1)}40%{transform:scale(1.12)}}
+.slot-card{display:flex;gap:12px;background:var(--card);border-radius:12px;overflow:hidden;
+  box-shadow:var(--shadow);margin-bottom:12px;border:1px solid var(--line)}
+.slot-card .thumb{width:120px;flex-shrink:0;aspect-ratio:3/2;background:#222;position:relative;overflow:hidden}
+.slot-card .thumb .nz,.slot-card .thumb img,.slot-card .thumb .ph{width:100%;height:100%;object-fit:cover}
+.slot-card .info{flex:1;min-width:0;padding:10px 12px 10px 0;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.slot-card .code{font-weight:700;font-size:15px}
+.slot-card .ttl{font-size:12px;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.slot-card .meta{font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px}
+.slot-hist{margin-top:18px;background:var(--card);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.slot-hist-h{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.slot-hist-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.slot-hist-item:first-of-type{border-top:none}
+.slot-hist-item .code{font-weight:700;color:var(--pink)}
+.slot-hist-item .acts{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
+.slot-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.slot-confetti span{position:absolute;top:10%;font-size:18px;animation:slotfall 1.4s ease-out forwards;opacity:0}
+@keyframes slotfall{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--dx),120px) rotate(40deg)}}

@@ -54,7 +54,7 @@ function setupNsfw(){
   },true);
 }
 
-let hotWeek=null,items=[],favs=[],samplesMap={},timer,homeTab='rec',retHash='#/',favShown={},driveCfg={url:'https://drive.google.com/drive/folders/15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderId:'15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderName:'番号截图'};
+let hotWeek=null,items=[],favs=[],samplesMap={},timer,homeTab='rec',slotHist=[],slotBusy=false,retHash='#/',favShown={},driveCfg={url:'https://drive.google.com/drive/folders/15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderId:'15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderName:'番号截图'};
 const viewStore=new Map(); // hashKey -> {frag, scrollY, homeTab, galCtl}
 let lastViewKey=null;
 function viewKey(h){
@@ -349,6 +349,129 @@ function emptyHomeHint(){
   const n=Auth.viewed().length;
   return `<p class="empty">暂无新内容${n?`（看过的 ${n} 部已移到 <a href="#/me/viewed">我的 · 已浏览</a>）`:''}</p>`;
 }
+/* ---------- 摇一摇 · 精选水果机 ---------- */
+const SLOT_FRUITS=['🍒','🍋','🍊','🍉','🍇','🍓'];
+function gamePool(){
+  const vs=Auth.viewedSet(),dis=new Set(Auth.dislikes().map(normCode));
+  const all=dedupeByCode([].concat(...favs.map(f=>f.works||[])));
+  return all.filter(w=>{const k=normCode(w.code);return k&&!vs.has(k)&&!dis.has(k)&&!w.suppressed});
+}
+function slotResultHtml(w){
+  if(!w)return'';
+  const acts=names(w).slice(0,3).join(' / ')||'—';
+  const th=hasCover(w)?imgTag(thumb(w.cover),'',full(w.cover)):`<div class="ph">暂无封面</div>`;
+  const L=/^[\w.-]+$/.test(String(w.vid));
+  const go=L?`<a class="btn btn-pink btn-block" href="#/v/${esc(w.vid)}">查看详情</a>`:`<span class="btn btn-ghost btn-block" style="opacity:.5">暂无详情</span>`;
+  return`<div class="slot-win"><div class="slot-win-flash">🎉 中奖！</div>
+    <div class="slot-card" data-code="${esc(normCode(w.code))}"><div class="thumb">${th}</div>
+      <div class="info"><div class="code">${esc(w.code)}</div><div class="ttl">${esc(short(w.title,48))}</div>
+      <div class="meta"><span>${esc(acts)}</span><span>${esc(w.date||'')}</span></div></div></div>
+    ${go}</div>`;
+}
+function slotHistHtml(){
+  if(!slotHist.length)return'';
+  const rows=slotHist.slice(0,5).map(w=>{
+    const L=/^[\w.-]+$/.test(String(w.vid));
+    const inner=`<span class="code">${esc(w.code)}</span><span class="acts">${esc(names(w).slice(0,2).join('/')||'')}</span>`;
+    return L?`<a class="slot-hist-item" href="#/v/${esc(w.vid)}">${inner}</a>`:`<div class="slot-hist-item">${inner}</div>`;
+  }).join('');
+  return`<div class="slot-hist"><div class="slot-hist-h">本次摇中</div>${rows}</div>`;
+}
+function pageGame(){
+  const pool=gamePool();
+  const n=pool.length;
+  if(!favs.length){
+    return`<div class="slot-page"><div class="empty"><div class="big">🎰</div><p>精选番号加载中…</p><p style="font-size:12px">稍后再来摇</p></div></div>`;
+  }
+  if(!n){
+    return`<div class="slot-page"><div class="empty"><div class="big">🎰</div><p>精选池暂时空了</p><p style="font-size:12px">不感兴趣 / 已浏览的不会再摇到 · 可去 <a href="#/me/viewed">已浏览</a> 或 <a href="#/me/dislikes">不感兴趣</a> 调整</p></div></div>`;
+  }
+  const reels=SLOT_FRUITS.map((f,i)=>`<div class="slot-reel" data-r="${i}"><div class="slot-strip">${(SLOT_FRUITS.concat(SLOT_FRUITS,SLOT_FRUITS).map(x=>`<span>${x}</span>`).join(''))}</div></div>`).join('');
+  return`<div class="slot-page">
+    <div class="slot-intro">从精选番号随机摇一部 · 可摇 ${n} 部</div>
+    <div class="slot-machine" id="slotm">
+      <div class="slot-chrome">
+        <div class="slot-title">🍀 LUCKY SLOT</div>
+        <div class="slot-window">${reels}<div class="slot-line"></div></div>
+        <div class="slot-lights" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <button type="button" class="slot-btn" id="slotspin" aria-label="摇一摇"><span class="slot-btn-knob">摇</span></button>
+    </div>
+    <div id="slotresult"></div>
+    <div id="slothist">${slotHistHtml()}</div>
+  </div>`;
+}
+function bindSlot(){
+  const btn=$('#slotspin');if(!btn)return;
+  slotBusy=false;
+  btn.onclick=()=>spinSlot();
+}
+function spinSlot(){
+  if(slotBusy)return;
+  const pool=gamePool();
+  if(!pool.length){home();return}
+  const m=$('#slotm'),btn=$('#slotspin'),res=$('#slotresult');
+  if(!m||!btn)return;
+  slotBusy=true;btn.disabled=true;btn.classList.add('pull');
+  m.classList.add('spinning');m.classList.remove('win');
+  if(res)res.innerHTML='';
+  const strips=$$('.slot-reel .slot-strip');
+  strips.forEach((s,i)=>{
+    s.style.transition='none';s.style.transform='translateY(0)';
+    s.classList.add('spinning');
+    s.style.animation=`slotspin ${0.45+i*0.05}s linear infinite`;
+  });
+  // pick work first so "win fruit" can match across reels
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  const winFruit=SLOT_FRUITS[Math.floor(Math.random()*SLOT_FRUITS.length)];
+  const stopAt=[700,1200,1700];
+  const cell=56; // must match CSS .slot-reel span height
+  const land=(strip,fruit,delay)=>{
+    return new Promise(resolve=>{
+      setTimeout(()=>{
+        strip.classList.remove('spinning');
+        strip.style.animation='none';
+        // build a tall strip ending on win fruit near middle
+        const base=SLOT_FRUITS.concat(SLOT_FRUITS,SLOT_FRUITS,SLOT_FRUITS);
+        const idx=base.length; // append win at end then scroll to it
+        const seq=base.concat([fruit,fruit,fruit]);
+        strip.innerHTML=seq.map(x=>`<span>${x}</span>`).join('');
+        const target=-(idx*cell); // first of the three win fruits centered-ish
+        strip.style.transition='none';
+        strip.style.transform='translateY(0)';
+        // force reflow then ease to stop
+        void strip.offsetWidth;
+        strip.style.transition='transform 0.85s cubic-bezier(.15,.85,.25,1)';
+        strip.style.transform=`translateY(${target}px)`;
+        setTimeout(resolve,900);
+      },delay);
+    });
+  };
+  Promise.all(strips.map((s,i)=>land(s,winFruit,stopAt[i]))).then(()=>{
+    m.classList.remove('spinning');m.classList.add('win');
+    btn.classList.remove('pull');btn.disabled=false;slotBusy=false;
+    slotHist=[pick,...slotHist.filter(x=>normCode(x.code)!==normCode(pick.code))].slice(0,8);
+    if(res)res.innerHTML=slotResultHtml(pick);
+    const hist=$('#slothist');if(hist)hist.innerHTML=slotHistHtml();
+    // brief confetti
+    burstConfetti(m);
+  });
+}
+function burstConfetti(el){
+  if(!el)return;
+  const box=document.createElement('div');box.className='slot-confetti';box.setAttribute('aria-hidden','true');
+  const bits=['✨','🎊','⭐','💖','🍋','🍒'];
+  for(let i=0;i<14;i++){
+    const s=document.createElement('span');
+    s.textContent=bits[i%bits.length];
+    s.style.left=(8+Math.random()*84)+'%';
+    s.style.animationDelay=(Math.random()*0.25)+'s';
+    s.style.setProperty('--dx',((Math.random()-.5)*120)+'px');
+    box.appendChild(s);
+  }
+  el.appendChild(box);
+  setTimeout(()=>box.remove(),1600);
+}
 /* ---------- 精选 · 按演员归档 ---------- */
 let agOpen={};
 function featuredGroups({home=false,exclude=null}={}){
@@ -403,10 +526,12 @@ function home(){
     $('#app').innerHTML=`<div class="sec"><div class="sec-h"><h2>搜索「${esc(q)}」</h2></div><div class="vgrid">${f.map(vcard).join('')||'<div class="empty"><p>没有匹配结果</p></div>'}</div></div>`;
     bindFavBtns();return;
   }
-  $('#app').innerHTML=`<div class="htabs"><a href="#/" data-ht="rec" class="${homeTab==='rec'?'on':''}">推荐</a><a href="#/" data-ht="hot" class="${homeTab==='hot'?'on':''}">热门</a></div>
-    <div id="homebody">${homeTab==='hot'?pageHot():pageRecommend()}</div>`;
+  const body=homeTab==='hot'?pageHot():homeTab==='game'?pageGame():pageRecommend();
+  $('#app').innerHTML=`<div class="htabs"><a href="#/" data-ht="rec" class="${homeTab==='rec'?'on':''}">推荐</a><a href="#/" data-ht="hot" class="${homeTab==='hot'?'on':''}">热门</a><a href="#/" data-ht="game" class="${homeTab==='game'?'on':''}">摇一摇</a></div>
+    <div id="homebody">${body}</div>`;
   $$('.htabs a').forEach(a=>a.onclick=e=>{e.preventDefault();homeTab=a.dataset.ht;bumpView('#/');bumpView(viewKey('#/'));home();lastViewKey=viewKey('#/')});
   if(homeTab==='rec')initCar();
+  if(homeTab==='game')bindSlot();
   bindFavBtns();
 }
 function initCar(){
