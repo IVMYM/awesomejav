@@ -340,3 +340,59 @@ img.broken{display:none!important}
 .slot-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
 .slot-confetti span{position:absolute;top:10%;font-size:18px;animation:slotfall 1.4s ease-out forwards;opacity:0}
 @keyframes slotfall{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--dx),120px) rotate(40deg)}}
+
+/* ---------- 游戏子切换 ---------- */
+.gsub{display:flex;gap:8px;padding:10px 14px 0;justify-content:center}
+.gsub button{height:32px;padding:0 14px;border-radius:16px;font-size:13px;font-weight:600;
+  background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.gsub button.on{background:var(--pink-soft);color:var(--pink);border-color:var(--pink)}
+
+/* ---------- 荷官二十一点 ---------- */
+.bj-page .bj-table{position:relative;max-width:360px;margin:0 auto 16px}
+.bj-chrome{padding-bottom:14px}
+.bj-dealer{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:8px 10px;
+  background:rgba(0,0,0,.18);border-radius:12px}
+.bj-av{width:48px;height:48px;border-radius:50%;overflow:hidden;background:#2a2a30;flex-shrink:0;
+  border:2px solid rgba(255,255,255,.45);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.bj-av .nz,.bj-av img,.bj-av-img{width:100%;height:100%;object-fit:cover}
+.bj-av .nz .nzl{font-size:7px;letter-spacing:0}.bj-av .nz .nzl small{display:none}
+.bj-av-ph{display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:22px}
+.bj-dealer-info{display:flex;flex-direction:column;gap:2px;color:#fff;min-width:0}
+.bj-dealer-info b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bj-dealer-info span{font-size:11px;opacity:.8}
+.bj-felt{background:#1a1a1e;border-radius:12px;padding:12px 10px 14px;
+  box-shadow:inset 0 0 0 3px #2a2a30,inset 0 6px 16px rgba(0,0,0,.55);min-height:160px}
+.bj-idle{text-align:center;padding:8px 4px 4px;color:rgba(255,255,255,.85)}
+.bj-rules{font-size:11px;line-height:1.55;margin:0 0 10px;opacity:.9}
+.bj-pool{font-size:12px;margin:0 0 14px;color:#ffd0de}
+.bj-deal-btn{display:inline-flex;align-items:center;justify-content:center;min-width:120px;height:44px;
+  padding:0 22px;border-radius:22px;font-weight:800;font-size:16px;letter-spacing:2px;color:#fff;
+  background:radial-gradient(circle at 35% 30%,#ffd0de,#FB7299 55%,#d94872);
+  box-shadow:0 4px 0 #b83b5a,0 8px 16px rgba(184,59,90,.35);-webkit-tap-highlight-color:transparent}
+.bj-deal-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #b83b5a,0 4px 10px rgba(184,59,90,.3)}
+.bj-stake{text-align:center;font-size:12px;color:rgba(255,255,255,.75);margin-bottom:10px}
+.bj-stake b{color:#ffe566;font-size:13px;letter-spacing:.5px}
+.bj-side{margin-bottom:12px}
+.bj-label{display:flex;justify-content:space-between;align-items:center;color:rgba(255,255,255,.7);
+  font-size:12px;font-weight:600;margin:0 2px 6px}
+.bj-label em{font-style:normal;color:#fff;font-size:15px;font-weight:800;background:rgba(251,114,153,.35);
+  padding:1px 8px;border-radius:10px}
+.bj-hand{display:flex;flex-wrap:wrap;gap:6px;min-height:72px;align-items:flex-start}
+.bj-card{position:relative;width:48px;height:68px;border-radius:6px;background:linear-gradient(#fff,#f4f4f6);
+  box-shadow:0 2px 6px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.06);
+  color:#1a1a1e;font-weight:800;display:flex;flex-direction:column;justify-content:space-between;
+  padding:4px 5px;flex-shrink:0;animation:bjdeal .28s ease}
+.bj-card.red{color:#e43}
+.bj-card .bj-r{font-size:13px;line-height:1}
+.bj-card .bj-s{font-size:18px;text-align:center;line-height:1;flex:1;display:flex;align-items:center;justify-content:center}
+.bj-card .bj-rb{font-size:11px;line-height:1;align-self:flex-end;transform:rotate(180deg)}
+.bj-card.back{background:linear-gradient(145deg,#ff8fb3,#e45a82 55%,#b83b5a);color:#fff;
+  align-items:center;justify-content:center;padding:0}
+.bj-card.back span{font-size:22px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+@keyframes bjdeal{from{opacity:0;transform:translateY(-12px) rotate(-8deg) scale(.9)}to{opacity:1;transform:none}}
+.bj-acts{display:flex;gap:10px;justify-content:center;margin-top:4px}
+.bj-acts .btn{min-width:96px}
+.bj-punish .punish-flash{color:#c43}.punish-card{border-color:#f0b0c0}
+.nz.punish>img{filter:blur(36px)!important;-webkit-filter:blur(36px)!important}
+.nz.punish .nzl{background:rgba(80,0,20,.35);letter-spacing:1px;font-size:14px}
+.nz.punish.on>img{filter:none!important;-webkit-filter:none!important}

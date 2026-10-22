@@ -54,7 +54,7 @@ function setupNsfw(){
   },true);
 }
 
-let hotWeek=null,items=[],favs=[],samplesMap={},timer,homeTab='rec',slotHist=[],slotBusy=false,retHash='#/',favShown={},driveCfg={url:'https://drive.google.com/drive/folders/15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderId:'15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderName:'番号截图'};
+let hotWeek=null,items=[],favs=[],samplesMap={},timer,homeTab='rec',gameMode='slot',slotHist=[],slotBusy=false,bjBusy=false,bjLoseStreak=0,bjRound=null,retHash='#/',favShown={},driveCfg={url:'https://drive.google.com/drive/folders/15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderId:'15nFZ_HG6lJJEUHFP2VWQ2fwdTW6E-phl',folderName:'番号截图'};
 const viewStore=new Map(); // hashKey -> {frag, scrollY, homeTab, galCtl}
 let lastViewKey=null;
 function viewKey(h){
@@ -349,21 +349,46 @@ function emptyHomeHint(){
   const n=Auth.viewed().length;
   return `<p class="empty">暂无新内容${n?`（看过的 ${n} 部已移到 <a href="#/me/viewed">我的 · 已浏览</a>）`:''}</p>`;
 }
-/* ---------- 摇一摇 · 精选水果机 ---------- */
+/* ---------- 游戏 · 摇一摇 / 荷官二十一点 ---------- */
 const SLOT_FRUITS=['🍒','🍋','🍊','🍉','🍇','🍓'];
+const BJ_RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const BJ_SUITS=['♠','♥','♦','♣'];
 function gamePool(){
   const vs=Auth.viewedSet(),dis=new Set(Auth.dislikes().map(normCode));
   const all=dedupeByCode([].concat(...favs.map(f=>f.works||[])));
   return all.filter(w=>{const k=normCode(w.code);return k&&!vs.has(k)&&!dis.has(k)&&!w.suppressed});
 }
-function slotResultHtml(w){
+function gameSubHtml(){
+  return`<div class="gsub" role="tablist" aria-label="游戏模式">
+    <button type="button" data-gm="slot" class="${gameMode==='slot'?'on':''}" role="tab" aria-selected="${gameMode==='slot'}">🎰 摇一摇</button>
+    <button type="button" data-gm="bj" class="${gameMode==='bj'?'on':''}" role="tab" aria-selected="${gameMode==='bj'}">🃏 二十一点</button>
+  </div>`;
+}
+function slotResultHtml(w,flash){
   if(!w)return'';
   const acts=names(w).slice(0,3).join(' / ')||'—';
   const th=hasCover(w)?imgTag(thumb(w.cover),'',full(w.cover)):`<div class="ph">暂无封面</div>`;
   const L=/^[\w.-]+$/.test(String(w.vid));
   const go=L?`<a class="btn btn-pink btn-block" href="#/v/${esc(w.vid)}">查看详情</a>`:`<span class="btn btn-ghost btn-block" style="opacity:.5">暂无详情</span>`;
-  return`<div class="slot-win"><div class="slot-win-flash">🎉 中奖！</div>
+  return`<div class="slot-win"><div class="slot-win-flash">${flash||'🎉 中奖！'}</div>
     <div class="slot-card" data-code="${esc(normCode(w.code))}"><div class="thumb">${th}</div>
+      <div class="info"><div class="code">${esc(w.code)}</div><div class="ttl">${esc(short(w.title,48))}</div>
+      <div class="meta"><span>${esc(acts)}</span><span>${esc(w.date||'')}</span></div></div></div>
+    ${go}</div>`;
+}
+function punishResultHtml(w,tease){
+  if(!w)return'';
+  const acts=names(w).slice(0,3).join(' / ')||'—';
+  let th;
+  if(hasCover(w)){
+    const src=thumb(w.cover),fb=full(w.cover);
+    const err=fb?`onerror="this.onerror=null;this.src='${esc(fb)}'"`:`onerror="this.onerror=null;this.classList.add('broken');this.removeAttribute('src')"`;
+    th=`<span class="nz punish"><img loading="lazy" decoding="async" src="${esc(src)}" alt="" ${err}><b class="nzl">惩罚 · NSFW<small>点击查看</small></b></span>`;
+  }else th=`<div class="ph">暂无封面</div>`;
+  const L=/^[\w.-]+$/.test(String(w.vid));
+  const go=L?`<a class="btn btn-pink btn-block" href="#/v/${esc(w.vid)}">查看详情</a>`:`<span class="btn btn-ghost btn-block" style="opacity:.5">暂无详情</span>`;
+  return`<div class="slot-win bj-punish"><div class="slot-win-flash punish-flash">💀 ${esc(tease||'惩罚时间')}</div>
+    <div class="slot-card punish-card" data-code="${esc(normCode(w.code))}"><div class="thumb">${th}</div>
       <div class="info"><div class="code">${esc(w.code)}</div><div class="ttl">${esc(short(w.title,48))}</div>
       <div class="meta"><span>${esc(acts)}</span><span>${esc(w.date||'')}</span></div></div></div>
     ${go}</div>`;
@@ -377,7 +402,7 @@ function slotHistHtml(){
   }).join('');
   return`<div class="slot-hist"><div class="slot-hist-h">本次摇中</div>${rows}</div>`;
 }
-function pageGame(){
+function pageSlot(){
   const pool=gamePool();
   const n=pool.length;
   if(!favs.length){
@@ -421,25 +446,22 @@ function spinSlot(){
     s.classList.add('spinning');
     s.style.animation=`slotspin ${0.45+i*0.05}s linear infinite`;
   });
-  // pick work first so "win fruit" can match across reels
   const pick=pool[Math.floor(Math.random()*pool.length)];
   const winFruit=SLOT_FRUITS[Math.floor(Math.random()*SLOT_FRUITS.length)];
   const stopAt=[700,1200,1700];
-  const cell=56; // must match CSS .slot-reel span height
+  const cell=56;
   const land=(strip,fruit,delay)=>{
     return new Promise(resolve=>{
       setTimeout(()=>{
         strip.classList.remove('spinning');
         strip.style.animation='none';
-        // build a tall strip ending on win fruit near middle
         const base=SLOT_FRUITS.concat(SLOT_FRUITS,SLOT_FRUITS,SLOT_FRUITS);
-        const idx=base.length; // append win at end then scroll to it
+        const idx=base.length;
         const seq=base.concat([fruit,fruit,fruit]);
         strip.innerHTML=seq.map(x=>`<span>${x}</span>`).join('');
-        const target=-(idx*cell); // first of the three win fruits centered-ish
+        const target=-(idx*cell);
         strip.style.transition='none';
         strip.style.transform='translateY(0)';
-        // force reflow then ease to stop
         void strip.offsetWidth;
         strip.style.transition='transform 0.85s cubic-bezier(.15,.85,.25,1)';
         strip.style.transform=`translateY(${target}px)`;
@@ -453,7 +475,6 @@ function spinSlot(){
     slotHist=[pick,...slotHist.filter(x=>normCode(x.code)!==normCode(pick.code))].slice(0,8);
     if(res)res.innerHTML=slotResultHtml(pick);
     const hist=$('#slothist');if(hist)hist.innerHTML=slotHistHtml();
-    // brief confetti
     burstConfetti(m);
   });
 }
@@ -472,6 +493,172 @@ function burstConfetti(el){
   el.appendChild(box);
   setTimeout(()=>box.remove(),1600);
 }
+/* ---------- 荷官二十一点 ---------- */
+function bjShuffle(){
+  const d=[];
+  for(const s of BJ_SUITS)for(const r of BJ_RANKS)d.push({r,s,red:s==='♥'||s==='♦'});
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}
+  return d;
+}
+function bjVal(hand){
+  let t=0,aces=0;
+  for(const c of hand){
+    if(c.r==='A'){aces++;t+=11}
+    else if(c.r==='10'||c.r==='J'||c.r==='Q'||c.r==='K')t+=10;
+    else t+=+c.r;
+  }
+  while(t>21&&aces>0){t-=10;aces--}
+  return t;
+}
+function bjCardHtml(c,hide){
+  if(hide||!c)return`<div class="bj-card back" aria-hidden="true"><span>💋</span></div>`;
+  return`<div class="bj-card ${c.red?'red':''} deal"><span class="bj-r">${esc(c.r)}</span><span class="bj-s">${c.s}</span><span class="bj-rb">${esc(c.r)}</span></div>`;
+}
+function bjHandHtml(hand,hideHole){
+  return`<div class="bj-hand">${hand.map((c,i)=>bjCardHtml(c,hideHole&&i===0)).join('')}</div>`;
+}
+function bjPickDealer(){
+  if(!favs.length)return{name:'荷官小姐',cover:''};
+  const f=favs[Math.floor(Math.random()*favs.length)];
+  return{name:f.name||'荷官小姐',slug:f.slug||'',cover:actressCover(f)};
+}
+function bjTease(n){
+  if(n<=1)return'惩罚时间到';
+  if(n===2)return'再输一次荷官要加码…';
+  if(n===3)return'连续翻车 · 惩罚加码！';
+  return`连输 ${n} 局 · 荷官偷笑中`;
+}
+function bjDealerHtml(d){
+  const av=d.cover?imgTag(d.cover,'class="bj-av-img"',''):`<span class="bj-av-ph">🎀</span>`;
+  return`<div class="bj-dealer"><div class="bj-av">${av}</div><div class="bj-dealer-info"><b>${esc(d.name)}</b><span>荷官 · 庄家</span></div></div>`;
+}
+function pageBlackjack(){
+  const pool=gamePool();
+  if(!favs.length){
+    return`<div class="slot-page bj-page"><div class="empty"><div class="big">🃏</div><p>精选番号加载中…</p></div></div>`;
+  }
+  if(!pool.length){
+    return`<div class="slot-page bj-page"><div class="empty"><div class="big">🃏</div><p>精选池暂时空了</p><p style="font-size:12px">不感兴趣 / 已浏览的不会当作赌注 · 可去 <a href="#/me/viewed">已浏览</a> 或 <a href="#/me/dislikes">不感兴趣</a> 调整</p></div></div>`;
+  }
+  const r=bjRound;
+  const dealer=r&&r.dealer||bjPickDealer();
+  const phase=r?r.phase:'idle';
+  let table='';
+  if(phase==='idle'){
+    table=`<div class="bj-idle">
+      <p class="bj-rules">简化二十一点 · 要牌 / 停牌 · A=1 或 11 · 庄家 17 点停<br>每局押一部精选番号 · 赢了当奖励，输了 / 平局受惩罚</p>
+      <p class="bj-pool">可押 ${pool.length} 部 · 连输 ${bjLoseStreak} 局</p>
+      <button type="button" class="bj-deal-btn" id="bjdeal">发牌</button>
+    </div>`;
+  }else{
+    const hide=phase==='play';
+    const pVal=bjVal(r.player);
+    const dVal=hide?(r.dealerHand[1]?bjVal([r.dealerHand[1]]):'?'):bjVal(r.dealerHand);
+    const stake=`<div class="bj-stake">赌注 <b>${esc(r.stake.code)}</b></div>`;
+    const acts=phase==='play'?`<div class="bj-acts">
+      <button type="button" class="btn btn-pink" id="bjhit" ${bjBusy?'disabled':''}>要牌</button>
+      <button type="button" class="btn btn-ghost" id="bjstand" ${bjBusy?'disabled':''}>停牌</button>
+    </div>`:`<div class="bj-acts"><button type="button" class="bj-deal-btn" id="bjagain">再来一局</button></div>`;
+    table=`${stake}
+      <div class="bj-side"><div class="bj-label">荷官 <em>${hide?'?':dVal}</em></div>${bjHandHtml(r.dealerHand,hide)}</div>
+      <div class="bj-side"><div class="bj-label">你 <em>${pVal}</em></div>${bjHandHtml(r.player,false)}</div>
+      ${acts}`;
+  }
+  return`<div class="slot-page bj-page">
+    <div class="slot-intro">荷官二十一点 · 精选番号当赌注</div>
+    <div class="bj-table" id="bjtable">
+      <div class="slot-chrome bj-chrome">
+        <div class="slot-title">🃏 BLACKJACK</div>
+        ${bjDealerHtml(dealer)}
+        <div class="bj-felt" id="bjfelt">${table}</div>
+        <div class="slot-lights" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <div id="bjresult">${r&&r.resultHtml?r.resultHtml:''}</div>
+  </div>`;
+}
+function bjStartRound(){
+  if(bjBusy)return;
+  const pool=gamePool();
+  if(!pool.length){bjRound=null;home();return}
+  const stake=pool[Math.floor(Math.random()*pool.length)];
+  const deck=bjShuffle();
+  const player=[deck.pop(),deck.pop()];
+  const dealerHand=[deck.pop(),deck.pop()];
+  bjRound={phase:'play',stake,deck,player,dealerHand,dealer:bjPickDealer(),resultHtml:''};
+  // natural blackjack check
+  const pv=bjVal(player),dv=bjVal(dealerHand);
+  if(pv===21||dv===21){
+    bjResolve(pv===21&&dv===21?'push':pv===21?'win':'lose');
+    return;
+  }
+  home();
+}
+function bjHit(){
+  if(bjBusy||!bjRound||bjRound.phase!=='play')return;
+  bjBusy=true;
+  bjRound.player.push(bjRound.deck.pop());
+  const v=bjVal(bjRound.player);
+  if(v>21){bjResolve('lose');return}
+  if(v===21){bjStand();return}
+  bjBusy=false;home();
+}
+function bjStand(){
+  if(!bjRound||bjRound.phase!=='play')return;
+  bjBusy=true;
+  // dealer draws to 17+
+  while(bjVal(bjRound.dealerHand)<17)bjRound.dealerHand.push(bjRound.deck.pop());
+  const pv=bjVal(bjRound.player),dv=bjVal(bjRound.dealerHand);
+  let out;
+  if(dv>21)out='win';
+  else if(pv>dv)out='win';
+  else if(pv<dv)out='lose';
+  else out='push';
+  bjResolve(out);
+}
+function bjResolve(out){
+  if(!bjRound)return;
+  bjRound.phase='done';
+  const w=bjRound.stake;
+  let html='';
+  if(out==='win'){
+    bjLoseStreak=0;
+    html=slotResultHtml(w,'🎉 你赢了！奖励番号');
+  }else{
+    // lose + push = 平局偏罚
+    bjLoseStreak++;
+    const tease=out==='push'?`平局偏罚 · ${bjTease(bjLoseStreak)}`:bjTease(bjLoseStreak);
+    html=punishResultHtml(w,tease);
+  }
+  bjRound.resultHtml=html;
+  bjRound.outcome=out;
+  bjBusy=false;
+  home();
+  if(out==='win'){
+    const t=$('#bjtable');if(t)burstConfetti(t);
+  }
+}
+function bindBlackjack(){
+  const deal=$('#bjdeal');if(deal)deal.onclick=()=>bjStartRound();
+  const hit=$('#bjhit');if(hit)hit.onclick=()=>bjHit();
+  const stand=$('#bjstand');if(stand)stand.onclick=()=>bjStand();
+  const again=$('#bjagain');if(again)again.onclick=()=>{bjRound=null;bjStartRound()};
+}
+function pageGame(){
+  return gameSubHtml()+(gameMode==='bj'?pageBlackjack():pageSlot());
+}
+function bindGame(){
+  $$('.gsub [data-gm]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.gm===gameMode)return;
+    gameMode=b.dataset.gm;
+    if(gameMode!=='bj')bjRound=null;
+    bumpView('#/');bumpView(viewKey('#/'));
+    home();lastViewKey=viewKey('#/');
+  });
+  if(gameMode==='bj')bindBlackjack();
+  else bindSlot();
+}
+
 /* ---------- 精选 · 按演员归档 ---------- */
 let agOpen={};
 function featuredGroups({home=false,exclude=null}={}){
@@ -527,11 +714,11 @@ function home(){
     bindFavBtns();return;
   }
   const body=homeTab==='hot'?pageHot():homeTab==='game'?pageGame():pageRecommend();
-  $('#app').innerHTML=`<div class="htabs"><a href="#/" data-ht="rec" class="${homeTab==='rec'?'on':''}">推荐</a><a href="#/" data-ht="hot" class="${homeTab==='hot'?'on':''}">热门</a><a href="#/" data-ht="game" class="${homeTab==='game'?'on':''}">摇一摇</a></div>
+  $('#app').innerHTML=`<div class="htabs"><a href="#/" data-ht="rec" class="${homeTab==='rec'?'on':''}">推荐</a><a href="#/" data-ht="hot" class="${homeTab==='hot'?'on':''}">热门</a><a href="#/" data-ht="game" class="${homeTab==='game'?'on':''}">游戏</a></div>
     <div id="homebody">${body}</div>`;
   $$('.htabs a').forEach(a=>a.onclick=e=>{e.preventDefault();homeTab=a.dataset.ht;bumpView('#/');bumpView(viewKey('#/'));home();lastViewKey=viewKey('#/')});
   if(homeTab==='rec')initCar();
-  if(homeTab==='game')bindSlot();
+  if(homeTab==='game')bindGame();
   bindFavBtns();
 }
 function initCar(){
