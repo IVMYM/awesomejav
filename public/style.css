@@ -255,22 +255,23 @@ img.broken{display:none!important}
 .ag-foot{display:flex;gap:8px;justify-content:center;padding:2px 12px 0}
 .ag-foot:empty{display:none}
 .aglist{padding-top:4px}
-/* NSFW: blurred until tapped once.
-   iOS Safari blanks filter:blur() on <img> nested under overflow:hidden ancestors.
-   Blur the .nzb wrapper (same layer as scale) and pin cards with absolute fill. */
-.nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-transform:translateZ(0);transform:translateZ(0)}
-.nz .nzb{display:block;width:100%;height:100%;filter:blur(18px);-webkit-filter:blur(18px);transform:scale(1.14);-webkit-transform:scale(1.14);transform-origin:center center;will-change:filter,transform}
-.nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+/* NSFW cover until tapped.
+   Avoid CSS blur filters on iOS Safari (blank compositing under overflow:hidden).
+   Frosted opaque panel + dimmed sharp img instead. */
+.nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nz .nzb{display:block;width:100%;height:100%;transform:scale(1.04);-webkit-transform:scale(1.04);transform-origin:center center}
+.nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;opacity:.28}
 .nz.on{cursor:inherit}
-.nz.on .nzb{filter:none;-webkit-filter:none;transform:none;-webkit-transform:none;will-change:auto}
-.nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.6);background:rgba(0,0,0,.18);pointer-events:none;user-select:none}
-.nz .nzl small{font-size:10px;font-weight:500;letter-spacing:0;opacity:.85}
+.nz.on .nzb{transform:none;-webkit-transform:none}
+.nz.on .nzb>img,.nz.on img{opacity:1}
+.nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.55);background:rgba(16,16,20,.78);pointer-events:none;user-select:none;-webkit-user-select:none}
+.nz .nzl small{font-size:10px;font-weight:500;letter-spacing:0;opacity:.9}
 .nz.on .nzl{display:none}
 .nz.mini .nzl{font-size:8px;letter-spacing:0}.nz.mini .nzl small{display:none}
 .fwork>.nz{width:120px;height:80px;flex-shrink:0;border-radius:8px}
 .fwork>.nz img{border-radius:0}
 .detail #dgal-wrap>.nz{position:relative;inset:auto;height:auto;width:100%}
-.detail #dgal-wrap .nzb{height:auto}
+.detail #dgal-wrap .nzb{height:auto;transform:none;-webkit-transform:none}
 .detail #dgal-wrap .nz img.cover{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover}
 .car .slide .nz{position:absolute;inset:0}
 .car .slide .nz .nzl{padding-bottom:28px}
@@ -357,9 +358,11 @@ img.broken{display:none!important}
 /* ---------- 惩罚结果（记忆翻牌 / 共用） ---------- */
 .punish-box .punish-flash{color:#c43}
 .punish-card{border-color:#f0b0c0}
-.nz.punish .nzb{filter:blur(36px)!important;-webkit-filter:blur(36px)!important;transform:scale(1.22);-webkit-transform:scale(1.22)}
-.nz.punish .nzl{background:rgba(80,0,20,.35);letter-spacing:1px;font-size:14px}
-.nz.punish.on .nzb{filter:none!important;-webkit-filter:none!important;transform:none!important;-webkit-transform:none!important}
+.nz.punish:not(.on) .nzb{transform:scale(1.08);-webkit-transform:scale(1.08)}
+.nz.punish:not(.on) .nzb>img,.nz.punish:not(.on) img{opacity:.12}
+.nz.punish .nzl{background:rgba(72,0,24,.88);letter-spacing:1px;font-size:14px}
+.nz.punish.on .nzb{transform:none!important;-webkit-transform:none!important}
+.nz.punish.on .nzb>img,.nz.punish.on img{opacity:1}
 
 /* ---------- 记忆翻牌 ---------- */
 .mem-page .mem-table{position:relative;max-width:380px;margin:0 auto 16px}
