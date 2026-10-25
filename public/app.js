@@ -35,7 +35,7 @@ function imgTag(src,extra='',fb=''){
   return nz(`<img ${load} decoding="async" src="${esc(src)}" alt="" ${err} ${extra}>`);
 }
 /** NSFW: every work image is blurred + labelled until tapped once (per image, per page view). */
-const nz=(img,cls='')=>`<span class="nz${cls?' '+cls:''}">${img}<b class="nzl">NSFW<small>点击查看</small></b></span>`;
+const nz=(img,cls='')=>`<span class="nz${cls?' '+cls:''}"><span class="nzb">${img}</span><b class="nzl">NSFW<small>点击查看</small></b></span>`;
 function setupNsfw(){
   let x0=0,y0=0,moved=false;
   const down=e=>{const t=e.touches?e.touches[0]:e;x0=t.clientX;y0=t.clientY;moved=false};
@@ -383,7 +383,7 @@ function punishResultHtml(w,tease){
   if(hasCover(w)){
     const src=thumb(w.cover),fb=full(w.cover);
     const err=fb?`onerror="this.onerror=null;this.src='${esc(fb)}'"`:`onerror="this.onerror=null;this.classList.add('broken');this.removeAttribute('src')"`;
-    th=`<span class="nz punish"><img loading="lazy" decoding="async" src="${esc(src)}" alt="" ${err}><b class="nzl">惩罚 · NSFW<small>点击查看</small></b></span>`;
+    th=`<span class="nz punish"><span class="nzb"><img loading="lazy" decoding="async" src="${esc(src)}" alt="" ${err}></span><b class="nzl">惩罚 · NSFW<small>点击查看</small></b></span>`;
   }else th=`<div class="ph">暂无封面</div>`;
   const L=/^[\w.-]+$/.test(String(w.vid));
   const go=L?`<a class="btn btn-pink btn-block" href="#/v/${esc(w.vid)}">查看详情</a>`:`<span class="btn btn-ghost btn-block" style="opacity:.5">暂无详情</span>`;
