@@ -3,28 +3,42 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const hasCover=i=>i&&i.cover&&(i.cover_src==='r18'||i.cover_src==='dmm');
 const names=i=>(i.actresses&&i.actresses.length?i.actresses.map(a=>a.name):i.actresses_list||[]);
 const short=(s,n=36)=>{s=String(s||'');return s.length>n?s.slice(0,n)+'…':s};
-/** Root-relative asset URL. strips query for thumbs. */
-function absPath(path){
-  if(!path)return'';
-  let p=String(path).split('?')[0];
-  if(p.startsWith('/'))return p;
-  return '/'+p.replace(/^\.\//,'');
+/** Vercel Blob public origin for covers/thumbs/samples (see public/asset-base.json). Empty = same-origin /public. */
+let ASSET_BASE='';
+function isAbsUrl(u){return /^https?:\/\//i.test(String(u||''));}
+function relPath(path){
+  return String(path||'').split('?')[0].replace(/^\.\//,'').replace(/^\//,'');
 }
-/** List/card thumbnail: covers/X.jpg?v= → /thumbs/X.jpg ; samples → /thumbs/samples/... */
+function isBlobAssetPath(p){return /^(covers|thumbs|samples)\//.test(p);}
+/** Prefix site-relative covers/thumbs/samples with ASSET_BASE; leave absolute URLs unchanged. */
+function assetUrl(path){
+  if(!path)return'';
+  if(isAbsUrl(path))return path;
+  const raw=String(path);
+  const q=raw.includes('?')?'?'+raw.split('?').slice(1).join('?'):'';
+  const p=relPath(raw);
+  if(ASSET_BASE&&isBlobAssetPath(p))return ASSET_BASE.replace(/\/$/,'')+'/'+p+q;
+  if(p.startsWith('/'))return p+q;
+  return '/'+p+q;
+}
+/** Root-relative asset URL. strips query for thumbs. */
+function absPath(path){return assetUrl(path);}
+/** List/card thumbnail: covers/X.jpg?v= → thumbs/X.jpg ; samples → thumbs/samples/... */
 function thumb(path){
   if(!path)return'';
-  let p=String(path).split('?')[0].replace(/^\.\//,'').replace(/^\//,'');
-  if(p.startsWith('covers/'))return '/thumbs/'+p.slice('covers/'.length);
-  if(p.startsWith('samples/'))return '/thumbs/samples/'+p.slice('samples/'.length);
-  if(p.startsWith('thumbs/'))return '/'+p;
-  return '/'+p;
+  if(isAbsUrl(path))return path;
+  let p=relPath(path);
+  if(p.startsWith('covers/'))p='thumbs/'+p.slice('covers/'.length);
+  else if(p.startsWith('samples/'))p='thumbs/samples/'+p.slice('samples/'.length);
+  return assetUrl(p+(String(path).includes('?')?'?'+String(path).split('?').slice(1).join('?'):''));
 }
 /** Full-size for detail gallery */
 function full(path){
   if(!path)return'';
-  const q=String(path).includes('?')?'?'+String(path).split('?')[1]:'';
-  let p=String(path).split('?')[0].replace(/^\.\//,'').replace(/^\//,'');
-  return '/'+p+q;
+  if(isAbsUrl(path))return path;
+  const raw=String(path);
+  const q=raw.includes('?')?'?'+raw.split('?').slice(1).join('?'):'';
+  return assetUrl(relPath(raw)+q);
 }
 /** CSS url() safe inside double-quoted HTML style="..." (must use &quot;, not raw "). */
 function cssUrl(u){return `url(&quot;${esc(u)}&quot;)`}
@@ -1522,11 +1536,17 @@ function paintBoot(){
     if($('#app'))$('#app').innerHTML=`<div class="empty"><p>页面渲染失败</p><p style="font-size:12px">${esc(e.message||e)}</p></div>`;
   }
 }
+async function loadAssetBase(){
+  try{
+    const c=await fetchJson('asset-base.json?t='+Date.now(),8000);
+    if(c&&c.base)ASSET_BASE=String(c.base).replace(/\/$/,'');
+  }catch(_){}
+}
 async function boot(){
   if($('#app'))$('#app').innerHTML='<div class="empty"><p>加载中…</p></div>';
   try{
     // Critical path only — never block first paint on auth or fav.json
-    const d=await fetchJson('data.json?t='+Date.now(),15000);
+    const d=await Promise.all([loadAssetBase(),fetchJson('data.json?t='+Date.now(),15000)]).then(([,data])=>data);
     items=dedupeByCode(d.items||[]);
   }catch(err){
     const msg=err&&err.name==='AbortError'?'加载超时，请检查网络':(err&&err.message?err.message:String(err));

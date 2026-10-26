@@ -35,7 +35,7 @@
 |------|------|
 | 前端 | 纯静态单页应用（`public/index.html`、`app.js`、`auth.js`、`style.css`），基于 hash 路由，适配手机屏幕 |
 | 后端 | Vercel Serverless Functions（`api/`）：`register`、`login`、`logout`、`me`、`upload`、`feed-prefs` |
-| 存储 | Vercel Blob：用户记录 `users/{name}/…json`（保留最近 5 个版本）、会话 `sessions/{token}.json`、用户上传的截图 |
+| 存储 | Vercel Blob：用户记录 `users/{name}/…json`（保留最近 5 个版本）、会话 `sessions/{token}.json`、用户上传的截图；封面 / 缩略图 / 剧照（`covers/`、`thumbs/`、`samples/`）也在 Blob 上，前端通过 `public/asset-base.json` 的 `base` URL 加载 |
 | 同步 | 收藏、关注、不感兴趣、已浏览先本地即时生效，再通过串行队列在后台写入云端，失败自动重试并提示 |
 | 部署 | Vercel，自定义域名 `jav.xxznote.eu.org` |
 
@@ -61,4 +61,10 @@ vercel.json       Vercel 配置
 
 ## 说明
 
-本仓库只包含代码和配置。封面、缩略图、剧照等图片以及作品数据 JSON 都不入库，已在 `.gitignore` 中排除。
+本仓库只包含代码和配置。封面、缩略图、剧照等图片以及作品 data JSON 都不入库，已在 `.gitignore` 中排除。
+
+### 静态图片与部署体积
+
+- 抓取脚本仍会把封面 / 剧照写入本机 `public/covers/`、`public/thumbs/`、`public/samples/`（便于上传到 Blob）。
+- **Vercel 部署包不再包含这些目录**（见 `deploy.py` 的 `DEPLOY_SKIP_PREFIXES`）；线上由 Blob 提供，路径与本地一致，例如 `covers/ABC-123.jpg` → `{base}/covers/ABC-123.jpg`。
+- 更换 Blob 商店时：把 `public/asset-base.json` 的 `base` 设为 `https://{storeId}.public.blob.vercel-storage.com`（`storeId` 为 token 中 `store_` 后的 ID、全小写，与 `api/_lib.js` 的 `publicUrl()` 一致），然后重新部署前端即可。
