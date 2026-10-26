@@ -1415,9 +1415,17 @@ async function renderDetailGallery(i){
   const slides=await keepExistingSlides(raw);
   paint(slides);
 }
+/** Scroll thumb strip only — never use scrollIntoView (Safari moves the page). */
+function centerThumbInStrip(strip,thumb,smooth){
+  if(!strip||!thumb)return;
+  const max=Math.max(0,strip.scrollWidth-strip.clientWidth);
+  const x=Math.max(0,Math.min(max,thumb.offsetLeft+(thumb.offsetWidth/2)-(strip.clientWidth/2)));
+  try{strip.scrollTo({left:x,behavior:smooth?'smooth':'auto'})}catch(_){strip.scrollLeft=x}
+}
 function initDetailGallery(){
   const gal=$('#dgal');if(!gal)return null;
   const tr=gal.querySelector('.dtrack'),n=tr.children.length,cur=$('#dcur');
+  const strip=$('#dthumbs');
   const thumbs=$$('#dthumbs .dthumb');
   let k=0,x0=0,dx=0,drag=false;
   const go=(i,fromUser)=>{
@@ -1427,7 +1435,7 @@ function initDetailGallery(){
     if(cur)cur.textContent=String(k+1);
     thumbs.forEach((d,j)=>{
       d.classList.toggle('on',j===k);
-      if(j===k)try{d.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'})}catch(_){}
+      if(j===k)centerThumbInStrip(strip,d,true);
     });
     if(fromUser)bumpAuto();
   };
