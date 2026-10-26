@@ -217,6 +217,12 @@ function torlnkPickRows(results){
   const rest=list.filter(r=>r&&!r.match);
   return matched.concat(rest).slice(0,12);
 }
+/** Magnet → 迅雷 thunder:// (AA + magnet + ZZ, base64). */
+function magnetToThunder(magnet){
+  magnet=String(magnet||'');
+  if(!magnet)return'';
+  try{return 'thunder://'+btoa('AA'+magnet+'ZZ')}catch(_){return''}
+}
 function torlnkRowHtml(r){
   const name=esc(short(r.name||'（无标题）',120));
   const size=fmtBytes(r.sizeBytes);
@@ -225,11 +231,12 @@ function torlnkRowHtml(r){
   const src=esc(r.source||'');
   const magnet=String(r.magnet||'');
   const mh=esc(magnet);
+  const th=esc(magnetToThunder(magnet));
   return`<div class="torlnk-row ${r.match?'match':''}">
     <div class="torlnk-info"><div class="torlnk-name">${name}</div>
     <div class="torlnk-meta"><span>${size}</span>${seedTxt?`<span class="seed">${seedTxt}</span>`:''}${src?`<span>${src}</span>`:''}</div></div>
     <div class="torlnk-actions">
-      ${magnet?`<a class="btn btn-pink" href="${mh}" rel="noopener">打开</a><button type="button" class="btn btn-outline torlnk-copy" data-magnet="${mh}">复制</button>`:''}
+      ${magnet?`${th?`<a class="btn btn-pink" href="${th}" rel="noopener">打开</a>`:''}<button type="button" class="btn btn-outline torlnk-copy" data-magnet="${mh}">复制</button>`:''}
     </div></div>`;
 }
 async function loadTorlnkSection(code){
