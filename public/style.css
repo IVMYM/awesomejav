@@ -260,6 +260,11 @@ img.broken{display:none!important}
 .disitem .dav .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .disitem .bd{min-width:0}.disitem .nm{font-size:13px;font-weight:700;color:var(--pink)}
 .disitem .meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blocked-chips{margin:0 12px 12px;padding:12px;background:var(--card);border-radius:12px;box-shadow:var(--shadow)}
+.blocked-chips-h{font-size:12px;color:var(--muted);margin-bottom:8px}
+.blocked-chips-row{display:flex;flex-wrap:wrap;gap:6px}
+.blocked-chips-row .act-chip{background:var(--pink-soft);color:var(--pink);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.blocked-more{font-size:11px;color:var(--muted);align-self:center;padding:0 4px}
 /* 已浏览 badge */
 .seen-badge{background:rgba(0,0,0,.55)}
 /* 精选 · 按演员归档 */

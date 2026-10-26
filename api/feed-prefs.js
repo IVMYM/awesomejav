@@ -68,10 +68,11 @@ module.exports = async (req, res) => {
         return r.ok ? r.json() : null;
       } catch { return null; }
     }));
-    const disCnt = new Map(), viewCnt = new Map(), follows = new Set();
+    const disCnt = new Map(), viewCnt = new Map(), blockedCnt = new Map(), follows = new Set();
     for (const u of users) {
       if (!u) continue;
       for (const c of L.normDislikes(u.dislikes)) inc(disCnt, c);
+      for (const n of L.normBlockedActresses(u.blocked_actresses)) inc(blockedCnt, n);
       for (const e of L.normViewed(u.viewed)) inc(viewCnt, e.c);
       for (const f of Array.isArray(u.follows) ? u.follows : []) follows.add(String(f));
     }
@@ -110,6 +111,7 @@ module.exports = async (req, res) => {
       dislike_series: top(series),
       dislike_studios: top(studios),
       dislike_tags: top(tags),
+      blocked_actresses: top(blockedCnt, 500),
       viewed: [...viewCnt.keys()],
       viewed_counts: top(viewCnt, 5000),
       follows: [...follows],
