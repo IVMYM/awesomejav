@@ -257,34 +257,6 @@ function torlnkPickRows(results){
   const rest=list.filter(r=>r&&!r.match);
   return matched.concat(rest).slice(0,12);
 }
-/** Magnet → 迅雷 thunder:// (AA + magnet + ZZ, base64). Desktop only — iOS Safari must use magnet: href. */
-function magnetToThunder(magnet){
-  magnet=String(magnet||'');
-  if(!magnet)return'';
-  try{return 'thunder://'+btoa('AA'+magnet+'ZZ')}catch(_){return''}
-}
-function isIOS(){
-  const n=typeof navigator!=='undefined'?navigator:null;
-  if(!n)return false;
-  return /iPad|iPhone|iPod/.test(n.userAgent||'')||(n.platform==='MacIntel'&&n.maxTouchPoints>1);
-}
-function bindTorlnkOpen(root){
-  if(isIOS())return;
-  (root||document).querySelectorAll('.torlnk-open').forEach(a=>{
-    a.addEventListener('click',e=>{
-      e.preventDefault();
-      const magnet=a.dataset.magnet||'';
-      const th=magnetToThunder(magnet);
-      if(!th)return;
-      const tmp=document.createElement('a');
-      tmp.href=th;
-      tmp.style.cssText='position:fixed;left:-9999px;opacity:0';
-      document.body.appendChild(tmp);
-      tmp.click();
-      tmp.remove();
-    });
-  });
-}
 function torlnkRowHtml(r){
   const name=esc(short(r.name||'（无标题）',120));
   const size=fmtBytes(r.sizeBytes);
@@ -293,12 +265,12 @@ function torlnkRowHtml(r){
   const src=esc(r.source||'');
   const magnet=String(r.magnet||'');
   const mh=esc(magnet);
+  const nameEl=magnet
+    ?`<div class="torlnk-name torlnk-copyable" role="button" tabindex="0" data-magnet="${mh}" title="点击复制磁力链接">${name}</div>`
+    :`<div class="torlnk-name">${name}</div>`;
   return`<div class="torlnk-row ${r.match?'match':''}">
-    <div class="torlnk-info"><div class="torlnk-name">${name}</div>
-    <div class="torlnk-meta"><span>${size}</span>${seedTxt?`<span class="seed">${seedTxt}</span>`:''}${src?`<span>${src}</span>`:''}</div></div>
-    <div class="torlnk-actions">
-      ${magnet?`<a class="btn btn-pink torlnk-open" href="${mh}" rel="noopener noreferrer" data-magnet="${mh}">迅雷</a><button type="button" class="btn btn-outline torlnk-copy" data-magnet="${mh}">复制</button>`:''}
-    </div></div>`;
+    <div class="torlnk-info">${nameEl}
+    <div class="torlnk-meta"><span>${size}</span>${seedTxt?`<span class="seed">${seedTxt}</span>`:''}${src?`<span>${src}</span>`:''}</div></div></div>`;
 }
 function torlnkUpdateCacheMeta(data){
   const meta=$('#torlnk-cache-meta');
@@ -319,10 +291,15 @@ function torlnkRenderResults(body,data){
     return;
   }
   body.innerHTML=`<div class="torlnk-list">${rows.map(torlnkRowHtml).join('')}</div>`;
-  bindTorlnkOpen(body);
-  body.querySelectorAll('.torlnk-copy').forEach(b=>b.onclick=async()=>{
-    const ok=await copyText(b.dataset.magnet||'');
-    toast(ok?'已复制磁力链接':'复制失败');
+  body.querySelectorAll('.torlnk-copyable').forEach(el=>{
+    const copy=async()=>{
+      const ok=await copyText(el.dataset.magnet||'');
+      toast(ok?'已复制磁力链接':'复制失败');
+    };
+    el.onclick=()=>copy();
+    el.onkeydown=e=>{
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();copy()}
+    };
   });
 }
 async function initTorlnkHead(code){

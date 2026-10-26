@@ -217,14 +217,10 @@ img.broken{display:none!important}
 .torlnk-row.match{border-color:rgba(251,114,153,.35)}
 .torlnk-info{flex:1;min-width:0}
 .torlnk-name{font-size:13px;font-weight:600;line-height:1.45;word-break:break-word}
+.torlnk-copyable{cursor:pointer;color:var(--pink)}
+.torlnk-copyable:hover{text-decoration:underline}
 .torlnk-meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px 10px}
 .torlnk-meta .seed{color:#6bd46b}
-.torlnk-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
-.torlnk-actions .btn{font-size:11px;padding:6px 10px;white-space:nowrap}
-@media (max-width:480px){
-  .torlnk-row{flex-direction:column}
-  .torlnk-actions{flex-direction:row;flex-wrap:wrap}
-}
 
 .up-progress{width:100%;margin-top:10px}
 .up-progress-track{height:8px;background:#eee;border-radius:99px;overflow:hidden}
