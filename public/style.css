@@ -204,9 +204,12 @@ img.broken{display:none!important}
 
 .torlnk-box{margin:14px 0 4px;padding:12px;background:var(--card);border-radius:12px;box-shadow:var(--shadow)}
 .torlnk-box[hidden]{display:none!important}
-.torlnk-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.torlnk-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .torlnk-head h3{font-size:14px;margin:0;font-weight:700}
-.torlnk-sub{font-size:11px;color:var(--muted)}
+.torlnk-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.torlnk-source{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:inherit;max-width:min(160px,42vw)}
+.torlnk-cache-meta{font-size:11px;color:var(--muted);white-space:nowrap}
+.torlnk-tools .btn-sm{font-size:11px;padding:5px 10px}
 .torlnk-state{font-size:13px;color:var(--muted);padding:8px 0;line-height:1.5}
 .torlnk-state.err{color:#f88}
 .torlnk-list{display:flex;flex-direction:column;gap:8px}

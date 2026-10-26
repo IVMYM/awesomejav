@@ -210,6 +210,46 @@ function fmtBytes(n){
   return v.toFixed(d)+' '+u[i];
 }
 let _torlnkCtrl=null;
+const TORLNK_SRC_KEY='torlnk_source';
+const TORLNK_SOURCES_FALLBACK=[
+  {id:'5cili',label:'无极磁链'},
+  {id:'btdig',label:'BTDigg'},
+  {id:'sukebei',label:'Sukebei'},
+];
+let _torlnkSources=null,_torlnkSourcesPromise=null;
+function torlnkGetSource(){
+  try{const s=localStorage.getItem(TORLNK_SRC_KEY);if(s)return s}catch(_){}
+  return '5cili';
+}
+function torlnkSetSource(id){try{localStorage.setItem(TORLNK_SRC_KEY,id)}catch(_){}}
+async function torlnkSources(){
+  if(_torlnkSources)return _torlnkSources;
+  if(_torlnkSourcesPromise)return _torlnkSourcesPromise;
+  _torlnkSourcesPromise=(async()=>{
+    try{
+      const headers={};
+      const tok=Auth.getToken();
+      if(tok)headers.Authorization='Bearer '+tok;
+      const res=await fetch('/api/torlnk?list=1',{credentials:'same-origin',headers});
+      if(res.ok){
+        const d=await res.json();
+        if(Array.isArray(d.sources)&&d.sources.length){_torlnkSources=d.sources;return _torlnkSources}
+      }
+    }catch(_){}
+    _torlnkSources=TORLNK_SOURCES_FALLBACK;
+    return _torlnkSources;
+  })();
+  return _torlnkSourcesPromise;
+}
+function fmtCacheAge(ts){
+  ts=Number(ts)||0;
+  if(!ts)return'';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<45)return'刚刚';
+  if(s<3600)return Math.floor(s/60)+' 分钟前';
+  if(s<86400)return Math.floor(s/3600)+' 小时前';
+  return Math.floor(s/86400)+' 天前';
+}
 function abortTorlnk(){if(_torlnkCtrl){try{_torlnkCtrl.abort()}catch(_){}_torlnkCtrl=null}}
 function torlnkPickRows(results){
   const list=Array.isArray(results)?results:[];
@@ -260,37 +300,87 @@ function torlnkRowHtml(r){
       ${magnet?`<a class="btn btn-pink torlnk-open" href="${mh}" rel="noopener noreferrer" data-magnet="${mh}">迅雷</a><button type="button" class="btn btn-outline torlnk-copy" data-magnet="${mh}">复制</button>`:''}
     </div></div>`;
 }
-async function loadTorlnkSection(code){
+function torlnkUpdateCacheMeta(data){
+  const meta=$('#torlnk-cache-meta');
+  if(!meta)return;
+  if(data&&data.cached&&data.updatedAt){
+    meta.textContent=`缓存 · ${fmtCacheAge(data.updatedAt)}`;
+    meta.hidden=false;
+  }else if(data&&data.updatedAt&&!data.cached){
+    meta.textContent='刚刚更新';
+    meta.hidden=false;
+  }else meta.hidden=true;
+}
+function torlnkRenderResults(body,data){
+  const rows=torlnkPickRows(data.results);
+  if(!rows.length){
+    const note=data.rawCount!=null&&data.rawCount>0?`（原始结果 ${data.rawCount} 条，无番号匹配）`:'';
+    body.innerHTML=`<div class="torlnk-state">未找到匹配磁力${esc(note)}</div>`;
+    return;
+  }
+  body.innerHTML=`<div class="torlnk-list">${rows.map(torlnkRowHtml).join('')}</div>`;
+  bindTorlnkOpen(body);
+  body.querySelectorAll('.torlnk-copy').forEach(b=>b.onclick=async()=>{
+    const ok=await copyText(b.dataset.magnet||'');
+    toast(ok?'已复制磁力链接':'复制失败');
+  });
+}
+async function initTorlnkHead(code){
+  const sel=$('#torlnk-source');
+  const refresh=$('#torlnk-refresh');
+  if(!sel)return;
+  const sources=await torlnkSources();
+  let cur=torlnkGetSource();
+  if(!sources.some(s=>s.id===cur))cur=sources[0].id;
+  sel.innerHTML=sources.map(s=>`<option value="${esc(s.id)}"${s.id===cur?' selected':''}>${esc(s.label)}</option>`).join('');
+  torlnkSetSource(cur);
+  sel.onchange=()=>{
+    torlnkSetSource(sel.value);
+    const meta=$('#torlnk-cache-meta');if(meta)meta.hidden=true;
+    loadTorlnkSection(code,{source:sel.value});
+  };
+  if(refresh)refresh.onclick=()=>{
+    const meta=$('#torlnk-cache-meta');if(meta)meta.hidden=true;
+    loadTorlnkSection(code,{source:sel.value,fresh:true});
+  };
+}
+async function loadTorlnkSection(code,opts={}){
   const body=$('#torlnk-body');if(!body)return;
   abortTorlnk();
   const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
   _torlnkCtrl=ctrl;
-  body.innerHTML='<div class="torlnk-state">正在搜索磁力…</div>';
+  const sel=$('#torlnk-source');
+  const source=opts.source||(sel&&sel.value)||torlnkGetSource();
+  const fresh=!!opts.fresh;
+  body.innerHTML=`<div class="torlnk-state">${fresh?'正在重新搜索…':'正在加载磁力…'}</div>`;
   const headers={};
   const tok=Auth.getToken();
   if(tok)headers.Authorization='Bearer '+tok;
   const timer=ctrl?setTimeout(()=>ctrl.abort(),60000):null;
+  const buildUrl=(f)=>{const qs=new URLSearchParams({code,source});if(f)qs.set('fresh','1');return `/api/torlnk?${qs}`};
   try{
-    const res=await fetch(`/api/torlnk?code=${encodeURIComponent(code)}`,{credentials:'same-origin',headers,signal:ctrl?ctrl.signal:undefined});
+    const res=await fetch(buildUrl(fresh),{credentials:'same-origin',headers,signal:ctrl?ctrl.signal:undefined});
     let data={};try{data=await res.json()}catch(_){}
     if(!res.ok)throw new Error((data&&data.error)||('请求失败 '+res.status));
-    const rows=torlnkPickRows(data.results);
-    if(!rows.length){
-      const note=data.rawCount!=null&&data.rawCount>0?`（原始结果 ${data.rawCount} 条，无番号匹配）`:'';
-      body.innerHTML=`<div class="torlnk-state">未找到匹配磁力${esc(note)}</div>`;
-      return;
-    }
-    body.innerHTML=`<div class="torlnk-list">${rows.map(torlnkRowHtml).join('')}</div>`;
-    bindTorlnkOpen(body);
-    body.querySelectorAll('.torlnk-copy').forEach(b=>b.onclick=async()=>{
-      const ok=await copyText(b.dataset.magnet||'');
-      toast(ok?'已复制磁力链接':'复制失败');
-    });
+    torlnkUpdateCacheMeta(data);
+    torlnkRenderResults(body,data);
   }catch(e){
+    if(fresh){
+      try{
+        const res2=await fetch(buildUrl(false),{credentials:'same-origin',headers,signal:ctrl?ctrl.signal:undefined});
+        let data2={};try{data2=await res2.json()}catch(_){}
+        if(res2.ok&&data2.cached){
+          torlnkUpdateCacheMeta(data2);
+          torlnkRenderResults(body,data2);
+          toast('重新搜索失败，已显示缓存：'+(e.message||String(e)));
+          return;
+        }
+      }catch(_){}
+    }
     const msg=e&&e.name==='AbortError'?'搜索超时':(e.message||String(e));
     body.innerHTML=`<div class="torlnk-state err">${esc(msg)} <button type="button" class="btn btn-outline btn-sm" id="torlnk-retry">重试</button></div>`;
     const rb=$('#torlnk-retry');
-    if(rb)rb.onclick=()=>loadTorlnkSection(code);
+    if(rb)rb.onclick=()=>loadTorlnkSection(code,{source,fresh});
   }finally{
     if(timer)clearTimeout(timer);
     if(_torlnkCtrl===ctrl)_torlnkCtrl=null;
@@ -298,8 +388,8 @@ async function loadTorlnkSection(code){
 }
 function syncTorlnkSection(i,show){
   const box=$('#torlnk-box');if(!box)return;
-  if(show){box.hidden=false;loadTorlnkSection(i.code)}
-  else{box.hidden=true;abortTorlnk();const body=$('#torlnk-body');if(body)body.innerHTML=''}
+  if(show){box.hidden=false;initTorlnkHead(i.code);loadTorlnkSection(i.code)}
+  else{box.hidden=true;abortTorlnk();const body=$('#torlnk-body');if(body)body.innerHTML='';const meta=$('#torlnk-cache-meta');if(meta)meta.hidden=true}
 }
 
 async function copyText(text){
@@ -1182,8 +1272,15 @@ function detail(v){
         <p class="upload-note">截图已保存到云端，刷新或换设备登录同一账号不丢失。备份目录：Google Drive「番号截图」。<a href="${esc(driveUrl)}" target="_blank" rel="noopener">打开云端文件夹 ↗</a></p>
       </div>
       <div class="torlnk-box" id="torlnk-box" ${fav?'':'hidden'}>
-        <div class="torlnk-head"><h3>磁力链接</h3><span class="torlnk-sub">via h112 · 无极磁链</span></div>
-        <div id="torlnk-body">${fav?'<div class="torlnk-state">正在搜索磁力…</div>':''}</div>
+        <div class="torlnk-head">
+          <h3>磁力链接</h3>
+          <div class="torlnk-tools">
+            <select class="torlnk-source" id="torlnk-source" aria-label="磁力来源"></select>
+            <span class="torlnk-cache-meta" id="torlnk-cache-meta" hidden></span>
+            <button type="button" class="btn btn-outline btn-sm" id="torlnk-refresh">重新搜索</button>
+          </div>
+        </div>
+        <div id="torlnk-body">${fav?'<div class="torlnk-state">正在加载磁力…</div>':''}</div>
       </div>
       <h3 style="font-size:14px;margin:16px 0 0">中文剧情</h3>
       <div class="plot">${esc(i.plot_zh||'暂无')}</div>
@@ -1272,7 +1369,7 @@ function detail(v){
       finally{upbtn.disabled=false;upfile.value=''}
     };
   }
-  if(fav)loadTorlnkSection(i.code);
+  if(fav){initTorlnkHead(i.code);loadTorlnkSection(i.code)}
   renderDetailGallery(i);scrollTo(0,0);
 }
 let _galCtl=null,_galTimer=null,_galResume=null;
