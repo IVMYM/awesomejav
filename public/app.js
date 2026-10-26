@@ -43,7 +43,7 @@ function safeImg(src,extra='',fb=''){
   const klass=['nzimg',cls].filter(Boolean).join(' ');
   return `<span class="${klass}" role="img" ${al?`aria-label="${al}"`:''} style="background-image:${cssUrls(src,fb)}"></span>`;
 }
-/** NSFW: every work image is blurred + labelled until tapped once (per image, per page view). */
+/** NSFW gate for list/home cards only. Detail gallery uses safeImg without nz (Option A). */
 const nz=(img,cls='')=>`<span class="nz${cls?' '+cls:''}"><span class="nzb">${img}</span><b class="nzl">NSFW<small>点击查看</small></b></span>`;
 function setupNsfw(){
   let x0=0,y0=0,moved=false;
@@ -252,9 +252,10 @@ async function keepExistingSlides(slides){
 function slideHtml(sl,k,code){
   const badge=sl.kind==='mine'?`<span class="mine-badge">我的</span>`:'';
   const del=sl.kind==='mine'?`<button type="button" class="slide-del" data-del="${esc(sl.id)}" aria-label="删除">×</button>`:'';
+  // Detail gallery: no NSFW gate — show real photos immediately (list/home still gated).
   return `<div class="dslide" data-kind="${esc(sl.kind)}" ${sl.id?`data-id="${esc(sl.id)}"`:''}>
       ${badge}${del}
-      ${nz(safeImg(sl.src,`loading="${k?'lazy':'eager'}" alt="${esc(code)} ${k+1}"`,sl.fb||'')).replace('<span class="nz"',`<span class="nz" data-k="g${k}"`)}
+      ${safeImg(sl.src,`loading="${k?'lazy':'eager'}" alt="${esc(code)} ${k+1}"`,sl.fb||'')}
     </div>`;
 }
 
@@ -1179,13 +1180,14 @@ async function renderDetailGallery(i){
     if(!wrap.isConnected)return;
     if(!slides.length){
       wrap.innerHTML=coverFb
-        ?nz(safeImg(coverFb,`class="cover" loading="eager" alt="${esc(i.code)}"`))
+        ?safeImg(coverFb,`class="cover" loading="eager" alt="${esc(i.code)}"`)
         :'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
       _galCtl=null;return;
     }
+    // Thumbs: always show real pictures (no NSFW black slabs).
     const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>{
       const bg=(sl.kind==='sample'&&coverFb)?cssUrls(sl.src,coverFb):cssUrl(sl.src);
-      return `<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<span class="nzimg" role="img" style="background-image:${bg}"></span>`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`;
+      return `<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张"><span class="nzimg" role="img" style="background-image:${bg}"></span></button>`;
     }).join('')}</div>`:'';
     wrap.innerHTML=`<div class="dgallery" id="dgal">
       <div class="dtrack">${slides.map((sl,k)=>slideHtml(sl,k,i.code)).join('')}</div>

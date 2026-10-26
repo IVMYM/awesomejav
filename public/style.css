@@ -177,6 +177,11 @@ img{display:block;max-width:100%}
 .dthumbs .dthumb{flex:0 0 58px;width:58px;height:38px;padding:0;border:2px solid transparent;border-radius:7px;overflow:hidden;background:#2a2a2a;opacity:.55}
 .dthumbs .dthumb.on{border-color:var(--pink);opacity:1}
 .dthumbs .dthumb img,.dthumbs .dthumb .nz,.dthumbs .dthumb .nzb,.dthumbs .dthumb .nzimg{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat}
+/* Detail gallery: always show real photos at full opacity (no NSFW gate) */
+.detail #dgal-wrap .nzimg,.detail #dgal-wrap .dslide .nzimg,.detail .dthumbs .nzimg{opacity:1!important;background-color:#222}
+.detail .dthumbs .dthumb{opacity:.7}
+.detail .dthumbs .dthumb.on{opacity:1}
+
 .dthumbs .dthumb .nz{position:relative}
 
 /* soft placeholders / broken images */
@@ -261,11 +266,12 @@ img.broken{display:none!important}
    No blur/filter/scale transforms — those blank or break compositing on iOS. */
 .nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .nz .nzb{display:block;width:100%;height:100%;position:relative}
-.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.55}
-.nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;opacity:.28}
+/* List/home NSFW: light veil so poster outline is still visible on iOS */
+.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.78}
+.nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;opacity:.72}
 .nz.on{cursor:inherit}
 .nz.on .nzimg,.nz.on .nzb>img,.nz.on img{opacity:1}
-.nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.55);background:rgba(16,16,20,.62);pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.55);background:rgba(16,16,20,.38);pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-backdrop-filter:none;backdrop-filter:none}
 .nz .nzl small{font-size:10px;font-weight:500;letter-spacing:0;opacity:.9}
 .nz.on .nzl{display:none}
 .nz.mini .nzl{font-size:8px;letter-spacing:0}.nz.mini .nzl small{display:none}
