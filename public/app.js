@@ -227,6 +227,9 @@ function gallerySlides(i,userRows){
   }
   return slides;
 }
+/** Detail 1/N without user uploads: cover + samples. Badge when >1. */
+function hasMultiGallery(i){return gallerySlides(i).length>1}
+function multiBadge(i){return hasMultiGallery(i)?'<span class="multi-badge" aria-label="多图">多图</span>':''}
 /** Probe URL with Image(); CSS background-image has no onerror. */
 function probeUrl(url,ms=3500){
   return new Promise(res=>{
@@ -292,7 +295,7 @@ function vcard(i){
   const L=/^[\w.-]+$/.test(String(i.vid));
   const fav=Auth.isFavorited(i.vid);
   const th=hasCover(i)?imgTag(thumb(i.cover),'',full(i.cover)):`<div class="ph">暂无封面</div>`;
-  const main=`<div class="thumb">${th}</div><div class="info"><div class="code">${esc(i.code)}</div><div class="ttl">${esc(i.title)}</div><div class="meta"><span>${esc(i.date||'')}</span><span>${esc(i.studio||'')}</span></div></div>`;
+  const main=`<div class="thumb">${multiBadge(i)}${th}</div><div class="info"><div class="code">${esc(i.code)}</div><div class="ttl">${esc(i.title)}</div><div class="meta"><span>${esc(i.date||'')}</span><span>${esc(i.studio||'')}</span></div></div>`;
   const star=`<button type="button" class="favbtn ${fav?'on':''}" data-fav="${esc(i.vid)}" aria-label="收藏">${fav?'★':'☆'}</button>`;
   const dis=Auth.isDisliked(i.code);
   // 踩: small corner button, also OUTSIDE <a> (same iOS reason as favbtn)
@@ -361,7 +364,7 @@ function homeBuckets(heat){
 }
 function pageRecommend(){
   const {carItems,related,newest}=homeBuckets();
-  const car=carItems.length?`<div class="car" id="car"><div class="track">${carItems.map((i,k)=>`<a class="slide" data-code="${esc(normCode(i.code))}" href="#/v/${i.vid}">${imgTag(thumb(i.cover),k?'':'loading="eager"',full(i.cover))}<div class="cap"><b>${esc(i.code)}</b>${esc(short(i.title,40))}</div></a>`).join('')}</div><div class="dots">${carItems.map((_,k)=>`<i data-k="${k}"></i>`).join('')}</div></div>`:'';
+  const car=carItems.length?`<div class="car" id="car"><div class="track">${carItems.map((i,k)=>`<a class="slide" data-code="${esc(normCode(i.code))}" href="#/v/${i.vid}">${imgTag(thumb(i.cover),k?'':'loading="eager"',full(i.cover))}${multiBadge(i)}<div class="cap"><b>${esc(i.code)}</b>${esc(short(i.title,40))}</div></a>`).join('')}</div><div class="dots">${carItems.map((_,k)=>`<i data-k="${k}"></i>`).join('')}</div></div>`:'';
   const relSec=related.length?`<div class="sec"><div class="sec-h"><h2>关注相关</h2></div><div class="vgrid">${related.map(vcard).join('')}</div></div>`:'';
   return car+relSec+`<div class="sec" data-main="1"><div class="sec-h"><h2>最新上架</h2></div><div class="vgrid">${newest.map(vcard).join('')||emptyHomeHint()}</div></div>`;
 }
