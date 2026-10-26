@@ -1153,7 +1153,7 @@ function detail(v){
         <p class="upload-note">截图已保存到云端，刷新或换设备登录同一账号不丢失。备份目录：Google Drive「番号截图」。<a href="${esc(driveUrl)}" target="_blank" rel="noopener">打开云端文件夹 ↗</a></p>
       </div>
       <div class="torlnk-box" id="torlnk-box" ${fav?'':'hidden'}>
-        <div class="torlnk-head"><h3>磁力链接</h3><span class="torlnk-sub">via h112 · torlnk</span></div>
+        <div class="torlnk-head"><h3>磁力链接</h3><span class="torlnk-sub">via h112 · 无极磁链</span></div>
         <div id="torlnk-body">${fav?'<div class="torlnk-state">正在搜索磁力…</div>':''}</div>
       </div>
       <h3 style="font-size:14px;margin:16px 0 0">中文剧情</h3>
