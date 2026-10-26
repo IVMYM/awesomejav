@@ -35,7 +35,7 @@ def bundle():
                 files.append((rel, open(os.path.join(d,f),'rb').read()))
     # vercel.json: static headers + serverless
     vj=dict(VJSON)
-    vj["functions"]={ "api/**/*.js": { "memory": 256, "maxDuration": 30 } }
+    vj["functions"]={ "api/**/*.js": { "memory": 256, "maxDuration": 60 } }
     files.append(("vercel.json",json.dumps(vj,separators=(",",":")).encode()))
     open(os.path.join(pub,"vercel.json"),"wb").write(files[-1][1])
     done_p=os.path.join(OUT,"uploaded.json"); done=set(json.load(open(done_p))) if os.path.exists(done_p) else set()

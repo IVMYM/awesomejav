@@ -200,6 +200,79 @@ function toast(msg,action){
 }
 addEventListener('jav-save-fail',e=>toast('云端同步失败：'+(e.detail||'')));
 
+function fmtBytes(n){
+  n=Number(n)||0;
+  if(!Number.isFinite(n)||n<=0)return'—';
+  const u=['B','KB','MB','GB','TB'];
+  let i=0,v=n;
+  while(v>=1024&&i<u.length-1){v/=1024;i++}
+  const d=v>=100?0:v>=10?1:2;
+  return v.toFixed(d)+' '+u[i];
+}
+let _torlnkCtrl=null;
+function abortTorlnk(){if(_torlnkCtrl){try{_torlnkCtrl.abort()}catch(_){}_torlnkCtrl=null}}
+function torlnkPickRows(results){
+  const list=Array.isArray(results)?results:[];
+  const matched=list.filter(r=>r&&r.match);
+  const rest=list.filter(r=>r&&!r.match);
+  return matched.concat(rest).slice(0,12);
+}
+function torlnkRowHtml(r){
+  const name=esc(short(r.name||'（无标题）',120));
+  const size=fmtBytes(r.sizeBytes);
+  const seed=r.seeders!=null?Number(r.seeders):null;
+  const seedTxt=seed!=null&&!Number.isNaN(seed)?`🌱 ${seed}`:'';
+  const src=esc(r.source||'');
+  const magnet=String(r.magnet||'');
+  const mh=esc(magnet);
+  return`<div class="torlnk-row ${r.match?'match':''}">
+    <div class="torlnk-info"><div class="torlnk-name">${name}</div>
+    <div class="torlnk-meta"><span>${size}</span>${seedTxt?`<span class="seed">${seedTxt}</span>`:''}${src?`<span>${src}</span>`:''}</div></div>
+    <div class="torlnk-actions">
+      ${magnet?`<a class="btn btn-pink" href="${mh}" rel="noopener">打开</a><button type="button" class="btn btn-outline torlnk-copy" data-magnet="${mh}">复制</button>`:''}
+    </div></div>`;
+}
+async function loadTorlnkSection(code){
+  const body=$('#torlnk-body');if(!body)return;
+  abortTorlnk();
+  const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+  _torlnkCtrl=ctrl;
+  body.innerHTML='<div class="torlnk-state">正在搜索磁力…</div>';
+  const headers={};
+  const tok=Auth.getToken();
+  if(tok)headers.Authorization='Bearer '+tok;
+  const timer=ctrl?setTimeout(()=>ctrl.abort(),60000):null;
+  try{
+    const res=await fetch(`/api/torlnk?code=${encodeURIComponent(code)}`,{credentials:'same-origin',headers,signal:ctrl?ctrl.signal:undefined});
+    let data={};try{data=await res.json()}catch(_){}
+    if(!res.ok)throw new Error((data&&data.error)||('请求失败 '+res.status));
+    const rows=torlnkPickRows(data.results);
+    if(!rows.length){
+      const note=data.rawCount!=null&&data.rawCount>0?`（原始结果 ${data.rawCount} 条，无番号匹配）`:'';
+      body.innerHTML=`<div class="torlnk-state">未找到匹配磁力${esc(note)}</div>`;
+      return;
+    }
+    body.innerHTML=`<div class="torlnk-list">${rows.map(torlnkRowHtml).join('')}</div>`;
+    body.querySelectorAll('.torlnk-copy').forEach(b=>b.onclick=async()=>{
+      const ok=await copyText(b.dataset.magnet||'');
+      toast(ok?'已复制磁力链接':'复制失败');
+    });
+  }catch(e){
+    const msg=e&&e.name==='AbortError'?'搜索超时':(e.message||String(e));
+    body.innerHTML=`<div class="torlnk-state err">${esc(msg)} <button type="button" class="btn btn-outline btn-sm" id="torlnk-retry">重试</button></div>`;
+    const rb=$('#torlnk-retry');
+    if(rb)rb.onclick=()=>loadTorlnkSection(code);
+  }finally{
+    if(timer)clearTimeout(timer);
+    if(_torlnkCtrl===ctrl)_torlnkCtrl=null;
+  }
+}
+function syncTorlnkSection(i,show){
+  const box=$('#torlnk-box');if(!box)return;
+  if(show){box.hidden=false;loadTorlnkSection(i.code)}
+  else{box.hidden=true;abortTorlnk();const body=$('#torlnk-body');if(body)body.innerHTML=''}
+}
+
 async function copyText(text){
   text=String(text||'');
   try{
@@ -1079,6 +1152,10 @@ function detail(v){
         </div>
         <p class="upload-note">截图已保存到云端，刷新或换设备登录同一账号不丢失。备份目录：Google Drive「番号截图」。<a href="${esc(driveUrl)}" target="_blank" rel="noopener">打开云端文件夹 ↗</a></p>
       </div>
+      <div class="torlnk-box" id="torlnk-box" ${fav?'':'hidden'}>
+        <div class="torlnk-head"><h3>磁力链接</h3><span class="torlnk-sub">via h112 · torlnk</span></div>
+        <div id="torlnk-body">${fav?'<div class="torlnk-state">正在搜索磁力…</div>':''}</div>
+      </div>
       <h3 style="font-size:14px;margin:16px 0 0">中文剧情</h3>
       <div class="plot">${esc(i.plot_zh||'暂无')}</div>
       <p class="src">封面：${hasCover(i)?'R18.dev / DMM':'暂无'}　${i.url?`<a target="_blank" rel="noopener" href="${esc(i.url)}">javtext ↗</a>`:''}</p>
@@ -1094,6 +1171,7 @@ function detail(v){
       if(!dfav.isConnected)return;
       dfav.className=`btn ${on?'btn-pink':'btn-outline'}`;
       dfav.textContent=on?'★ 已收藏':'☆ 收藏';
+      syncTorlnkSection(i,on);
     }catch(err){
       if(dfav.isConnected){dfav.className=`btn ${was?'btn-pink':'btn-outline'}`;dfav.textContent=was?'★ 已收藏':'☆ 收藏'}
       toast('收藏失败：'+(err.message||err));
@@ -1165,6 +1243,7 @@ function detail(v){
       finally{upbtn.disabled=false;upfile.value=''}
     };
   }
+  if(fav)loadTorlnkSection(i.code);
   renderDetailGallery(i);scrollTo(0,0);
 }
 let _galCtl=null,_galTimer=null,_galResume=null;
