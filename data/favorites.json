@@ -1,0 +1,44 @@
+[
+  {
+    "slug": "kawakita-saika",
+    "name": "河北彩伽",
+    "aliases": [
+      "河北彩花",
+      "Kawakita Saika"
+    ],
+    "javtext_id": "18566",
+    "issue": "第一期"
+  },
+  {
+    "slug": "aozora-hikari",
+    "name": "青空光",
+    "aliases": [
+      "青空ひかり",
+      "Aozora Hikari"
+    ],
+    "javtext_id": "19032",
+    "issue": "第二期"
+  },
+  {
+    "slug": "tabuchi-masahiro",
+    "name": "田渊正浩",
+    "aliases": [
+      "田渕正浩",
+      "田淵正浩",
+      "Tabuchi Masahiro"
+    ],
+    "kind": "male",
+    "issue": "第三期",
+    "source": "javdb",
+    "javdb_id": "x7wn",
+    "limit": 300
+  },
+  {
+    "slug": "n-e5aeaee8a5bfe381b2e3818be3828b",
+    "name": "宮西ひかる",
+    "aliases": [],
+    "javtext_id": "54467",
+    "issue": "关注精选",
+    "limit": 50
+  }
+]
