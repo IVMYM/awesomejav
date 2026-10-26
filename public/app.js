@@ -26,13 +26,21 @@ function full(path){
   let p=String(path).split('?')[0].replace(/^\.\//,'').replace(/^\//,'');
   return '/'+p+q;
 }
+/** Poster-wall / card media: CSS background-image (no Safari broken-image ❓). */
 function imgTag(src,extra='',fb=''){
+  if(!src)return'';
+  const urls=[src,fb].filter(Boolean).map(u=>`url("${esc(u)}")`).join(',');
+  // extra kept for API compat (loading= ignored — bg images load with element)
+  return nz(`<span class="nzimg" role="img" style="background-image:${urls}"></span>`);
+}
+/** Detail / gallery <img> with safe onerror (never leave browser ❓). */
+function safeImg(src,extra='',fb=''){
   if(!src)return'';
   const load=/loading=/.test(extra)?'':'loading="lazy"';
   const err=fb
-    ?`onerror="this.onerror=null;this.src='${esc(fb)}';this.removeAttribute('data-fb')"`
+    ?`onerror="if(!this.dataset.tried){this.dataset.tried=1;this.src='${esc(fb)}'}else{this.onerror=null;this.classList.add('broken');this.removeAttribute('src')}"`
     :`onerror="this.onerror=null;this.classList.add('broken');this.removeAttribute('src')"`;
-  return nz(`<img ${load} decoding="async" src="${esc(src)}" alt="" ${err} ${extra}>`);
+  return `<img ${load} decoding="async" src="${esc(src)}" alt="" ${err} ${extra}>`;
 }
 /** NSFW: every work image is blurred + labelled until tapped once (per image, per page view). */
 const nz=(img,cls='')=>`<span class="nz${cls?' '+cls:''}"><span class="nzb">${img}</span><b class="nzl">NSFW<small>点击查看</small></b></span>`;
@@ -222,7 +230,7 @@ function slideHtml(sl,k,code){
   const del=sl.kind==='mine'?`<button type="button" class="slide-del" data-del="${esc(sl.id)}" aria-label="删除">×</button>`:'';
   return `<div class="dslide" data-kind="${esc(sl.kind)}" ${sl.id?`data-id="${esc(sl.id)}"`:''}>
       ${badge}${del}
-      ${nz(`<img loading="${k?'lazy':'eager'}" decoding="async" src="${esc(sl.src)}" alt="${esc(code)} ${k+1}" onerror="this.onerror=null;this.style.opacity=.2">`).replace('<span class="nz"',`<span class="nz" data-k="g${k}"`)}
+      ${nz(safeImg(sl.src,`loading="${k?'lazy':'eager'}" alt="${esc(code)} ${k+1}"`)).replace('<span class="nz"',`<span class="nz" data-k="g${k}"`)}
     </div>`;
 }
 
@@ -381,9 +389,9 @@ function punishResultHtml(w,tease){
   const acts=names(w).slice(0,3).join(' / ')||'—';
   let th;
   if(hasCover(w)){
-    const src=thumb(w.cover),fb=full(w.cover);
-    const err=fb?`onerror="this.onerror=null;this.src='${esc(fb)}'"`:`onerror="this.onerror=null;this.classList.add('broken');this.removeAttribute('src')"`;
-    th=`<span class="nz punish"><span class="nzb"><img loading="lazy" decoding="async" src="${esc(src)}" alt="" ${err}></span><b class="nzl">惩罚 · NSFW<small>点击查看</small></b></span>`;
+    th=imgTag(thumb(w.cover),'',full(w.cover))
+      .replace('class="nz"','class="nz punish"')
+      .replace('>NSFW<small>','>惩罚 · NSFW<small>');
   }else th=`<div class="ph">暂无封面</div>`;
   const L=/^[\w.-]+$/.test(String(w.vid));
   const go=L?`<a class="btn btn-pink btn-block" href="#/v/${esc(w.vid)}">查看详情</a>`:`<span class="btn btn-ghost btn-block" style="opacity:.5">暂无详情</span>`;
@@ -555,9 +563,9 @@ function memStartRound(){
 function memCardFaceHtml(c){
   const f=c.face;
   if(f.kind==='emoji')return`<span class="mem-emoji">${f.emoji}</span>`;
-  const err=f.fb?`onerror="this.onerror=null;this.src='${esc(f.fb)}'"`:`onerror="this.onerror=null;this.classList.add('broken')"`;
-  // clear thumb for playability (reward/punish still use NSFW blur)
-  return`<img class="mem-face-img" loading="lazy" decoding="async" src="${esc(f.src)}" alt="" ${err}>`;
+  const urls=[f.src,f.fb].filter(Boolean).map(u=>`url("${esc(u)}")`).join(',');
+  // clear thumb for playability (reward/punish still use NSFW overlay)
+  return`<span class="mem-face-img" role="img" style="background-image:${urls}"></span>`;
 }
 function memBoardHtml(r){
   const cells=r.cards.map((c,i)=>{
@@ -981,7 +989,7 @@ function favPage(slug){
   const backHref=f.local?'javascript:history.back()':'#/fav';
   const backLabel=f.local?'← 返回':'← 精选女优';
   $('#app').innerHTML=`<div class="page"><a class="back" href="${backHref}">${backLabel}</a>
-    <div class="actor-hero">${hero?nz(`<img decoding="async" loading="eager" src="${esc(hero)}" alt="${esc(f.name)}" onerror="this.onerror=null;this.classList.add('broken')">`):'<div class="actor-hero-ph">暂无封面</div>'}</div>
+    <div class="actor-hero">${hero?nz(`<span class="nzimg" role="img" style="background-image:url(&quot;${esc(hero)}&quot;)" aria-label="${esc(f.name)}"></span>`):'<div class="actor-hero-ph">暂无封面</div>'}</div>
     <div class="page-h"><div><h1>${esc(f.name)}${f.kind==='male'?' <span class="mbadge">男优</span>':''}${f.local?' <span class="badge">专辑</span>':''}</h1>
     <div class="sub">${esc((f.aliases||[]).join(' / ')||(f.local?'由作品自动生成':''))} · ${cnt}</div></div>
     <button class="btn btn-sm ${on?'btn-pink':'btn-outline'}" data-follow="${esc(f.slug)}">${on?'已关注':'关注'}</button></div>
@@ -1144,10 +1152,10 @@ async function renderDetailGallery(i){
   try{if(Auth.current()&&typeof Uploads!=='undefined')userRows=await Uploads.list(Auth.current(),i.code)}catch(_){}
   const slides=gallerySlides(i,userRows);
   if(!slides.length){
-    wrap.innerHTML=hasCover(i)?nz(`<img class="cover" decoding="async" src="${esc(full(i.cover))}" alt="${esc(i.code)}" onerror="this.onerror=null;this.style.display='none'">`):'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
+    wrap.innerHTML=hasCover(i)?nz(safeImg(full(i.cover),`class="cover" loading="eager" alt="${esc(i.code)}"`)):'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
     _galCtl=null;return;
   }
-  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<img loading="lazy" decoding="async" src="${esc(sl.src)}" alt="">`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`).join('')}</div>`:'';
+  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<span class="nzimg" role="img" style="background-image:url(&quot;${esc(sl.src)}&quot;)"></span>`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`).join('')}</div>`:'';
   wrap.innerHTML=`<div class="dgallery" id="dgal">
       <div class="dtrack">${slides.map((sl,k)=>slideHtml(sl,k,i.code)).join('')}</div>
       <div class="dcounter"><span id="dcur">1</span>/${slides.length}</div>

@@ -256,27 +256,29 @@ img.broken{display:none!important}
 .ag-foot:empty{display:none}
 .aglist{padding-top:4px}
 /* NSFW cover until tapped.
-   Avoid CSS blur filters on iOS Safari (blank compositing under overflow:hidden).
-   Frosted opaque panel + dimmed sharp img instead. */
+   Use CSS background-image for wall thumbs (no iOS Safari broken-image ❓).
+   No blur/filter/scale transforms — those blank or break compositing on iOS. */
 .nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.nz .nzb{display:block;width:100%;height:100%;transform:scale(1.04);-webkit-transform:scale(1.04);transform-origin:center center}
+.nz .nzb{display:block;width:100%;height:100%;position:relative}
+.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.28}
 .nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;opacity:.28}
 .nz.on{cursor:inherit}
-.nz.on .nzb{transform:none;-webkit-transform:none}
-.nz.on .nzb>img,.nz.on img{opacity:1}
+.nz.on .nzimg,.nz.on .nzb>img,.nz.on img{opacity:1}
 .nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.55);background:rgba(16,16,20,.78);pointer-events:none;user-select:none;-webkit-user-select:none}
 .nz .nzl small{font-size:10px;font-weight:500;letter-spacing:0;opacity:.9}
 .nz.on .nzl{display:none}
 .nz.mini .nzl{font-size:8px;letter-spacing:0}.nz.mini .nzl small{display:none}
 .fwork>.nz{width:120px;height:80px;flex-shrink:0;border-radius:8px}
-.fwork>.nz img{border-radius:0}
+.fwork>.nz .nzimg,.fwork>.nz img{border-radius:0}
 .detail #dgal-wrap>.nz{position:relative;inset:auto;height:auto;width:100%}
-.detail #dgal-wrap .nzb{height:auto;transform:none;-webkit-transform:none}
+.detail #dgal-wrap .nzb{height:auto}
 .detail #dgal-wrap .nz img.cover{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover}
 .car .slide .nz{position:absolute;inset:0}
 .car .slide .nz .nzl{padding-bottom:28px}
 /* Fill aspect-ratio parents so .nz height:100% is definite on iOS */
 .vcard .thumb>.nz,.ahcard .av>.nz,.fitem .av>.nz,.actor-hero>.nz,.slot-card .thumb>.nz,.disitem .dav>.nz,.ag-av>.nz{position:absolute;inset:0;width:auto;height:auto}
+/* Never show browser broken-image icon */
+img.broken{display:none!important;visibility:hidden!important;width:0!important;height:0!important}
 /* 本周热门 rank badges */
 .wk-rank{position:absolute;left:6px;bottom:6px;z-index:3;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--pink);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .wk-badge{position:absolute;right:6px;bottom:6px;z-index:3;padding:1px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;pointer-events:none;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -334,7 +336,7 @@ img.broken{display:none!important}
 .slot-card{display:flex;gap:12px;background:var(--card);border-radius:12px;overflow:hidden;
   box-shadow:var(--shadow);margin-bottom:12px;border:1px solid var(--line)}
 .slot-card .thumb{width:120px;flex-shrink:0;aspect-ratio:3/2;background:#222;position:relative;overflow:hidden}
-.slot-card .thumb .nz,.slot-card .thumb img,.slot-card .thumb .ph{width:100%;height:100%;object-fit:cover}
+.slot-card .thumb .nz,.slot-card .thumb .nzimg,.slot-card .thumb img,.slot-card .thumb .ph{width:100%;height:100%;object-fit:cover;background-size:cover;background-position:center}
 .slot-card .info{flex:1;min-width:0;padding:10px 12px 10px 0;display:flex;flex-direction:column;justify-content:center;gap:4px}
 .slot-card .code{font-weight:700;font-size:15px}
 .slot-card .ttl{font-size:12px;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -358,11 +360,10 @@ img.broken{display:none!important}
 /* ---------- 惩罚结果（记忆翻牌 / 共用） ---------- */
 .punish-box .punish-flash{color:#c43}
 .punish-card{border-color:#f0b0c0}
-.nz.punish:not(.on) .nzb{transform:scale(1.08);-webkit-transform:scale(1.08)}
-.nz.punish:not(.on) .nzb>img,.nz.punish:not(.on) img{opacity:.12}
+/* no scale on punish — iOS compositing */
+.nz.punish:not(.on) .nzb>img,.nz.punish:not(.on) img,.nz.punish:not(.on) .nzimg{opacity:.12}
 .nz.punish .nzl{background:rgba(72,0,24,.88);letter-spacing:1px;font-size:14px}
-.nz.punish.on .nzb{transform:none!important;-webkit-transform:none!important}
-.nz.punish.on .nzb>img,.nz.punish.on img{opacity:1}
+.nz.punish.on .nzb>img,.nz.punish.on img,.nz.punish.on .nzimg{opacity:1}
 
 /* ---------- 记忆翻牌 ---------- */
 .mem-page .mem-table{position:relative;max-width:380px;margin:0 auto 16px}
@@ -395,7 +396,7 @@ img.broken{display:none!important}
 .mem-back span{font-size:22px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
 .mem-front{background:linear-gradient(#fff,#f4f4f6);transform:rotateY(180deg);
   box-shadow:0 2px 6px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.06)}
-.mem-face-img{width:100%;height:100%;object-fit:cover;display:block}
+.mem-face-img{width:100%;height:100%;object-fit:cover;display:block;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40}
 .mem-emoji{font-size:28px;line-height:1}
 .mem-card.matched .mem-front{box-shadow:0 0 0 2px #ffe566,0 2px 8px rgba(255,229,102,.45)}
 .mem-acts{display:flex;justify-content:center;margin-top:12px}
