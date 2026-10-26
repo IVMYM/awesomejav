@@ -1037,16 +1037,24 @@ function loginPage(isReg){
 function followingPage(){
   setTab('follow');clearInterval(timer);stopGalAuto();chip();
   const slugs=Auth.follows();
+  if(!slugs.length){
+    $('#app').innerHTML=`<div class="empty"><div class="big">👀</div><p>还没有关注的女优</p><p style="font-size:12px">在作品详情页点演员名，或在「我的 · 精选女优」里点「关注」</p><a class="btn btn-pink" href="#/" style="margin-top:16px">去首页看看</a></div>`;
+    return;
+  }
+  if(!favs.length){
+    $('#app').innerHTML=`<div class="empty"><p>加载关注中…</p></div>`;
+    return;
+  }
   const list=slugs.map(s=>resolveActress(s)||favs.find(f=>f.slug===s)).filter(Boolean);
   if(!list.length){
     $('#app').innerHTML=`<div class="empty"><div class="big">👀</div><p>还没有关注的女优</p><p style="font-size:12px">在作品详情页点演员名，或在「我的 · 精选女优」里点「关注」</p><a class="btn btn-pink" href="#/" style="margin-top:16px">去首页看看</a></div>`;
     return;
   }
   $('#app').innerHTML=`<div class="sec"><div class="sec-h"><h2>我的关注</h2><span style="font-size:12px;color:var(--muted)">${list.length} 人</span></div>
-    <div class="flist">${list.map(f=>{const c=actressCover(f);return`<a class="fitem" href="#/fav/${f.slug}">
+    <div class="flist">${list.map(f=>{const c=actressCover(f);const wc=(f.works&&f.works.length)||f.total||0;return`<a class="fitem" href="#/fav/${f.slug}">
       <div class="av">${c?imgTag(c):''}</div>
       <div class="bd"><div class="nm">${esc(f.name)}${f.kind==='male'?' <span class="mbadge">男优</span>':''}</div>
-      <div class="meta">${f.issue?esc(f.issue)+' · ':''}${f.works.length} 部作品</div></div></a>`}).join('')}</div></div>`;
+      <div class="meta">${f.issue?esc(f.issue)+' · ':''}${wc} 部作品</div></div></a>`}).join('')}</div></div>`;
 }
 
 function offlinePage(){
@@ -1536,14 +1544,17 @@ async function boot(){
   paintBoot();
   // Background: extras + session restore (timeout so it cannot freeze UI)
   Promise.all([
-    fetchJson('fav.json?t='+Date.now(),20000).then(f=>{favs=f.actresses||[];const h=location.hash||'';if(h.startsWith('#/fav')||h.startsWith('#/v/')||h.startsWith('#/me')){try{route()}catch(_){}}}).catch(()=>{favs=favs||[]}),
+    fetchJson('fav.json?t='+Date.now(),20000).then(f=>{favs=f.actresses||[];const h=location.hash||'';if(h.startsWith('#/fav')||h.startsWith('#/v/')||h.startsWith('#/me')||h.startsWith('#/following')){try{route()}catch(_){}}}).catch(()=>{favs=favs||[]}),
     fetchJson('samples.json?t='+Date.now(),12000).then(sm=>{samplesMap=sm.samples||{};}).catch(()=>{}),
     fetchJson('hot_week.json?t='+Date.now(),10000).then(w=>{hotWeek=w&&w.ranks?w:{ranks:{},snapshots:[]}}).catch(()=>{hotWeek={ranks:{},snapshots:[]}}),
     fetchJson('drive.json?t='+Date.now(),8000).then(dr=>{if(dr&&dr.folderId)driveCfg=dr}).catch(()=>{}),
   ]).then(()=>{
     // soft refresh home once so 热门 (fav works + hot_week) is complete (invalidate cache)
     const h=location.hash||'#/';
-    if(h==='#'||h==='#/'||h===''){
+    if(h.startsWith('#/following')){
+      bumpView('#/following');bumpView(viewKey('#/following'));lastViewKey=null;
+      try{followingPage();lastViewKey=viewKey('#/following')}catch(_){}
+    }else if(h==='#'||h==='#/'||h===''){
       bumpView('#/');bumpView(viewKey('#/'));lastViewKey=null;
       try{home();lastViewKey=viewKey('#/')}catch(_){}
     }
