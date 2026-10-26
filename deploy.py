@@ -10,7 +10,7 @@ Steps:
       (incremental; FAV_FULL=1 re-walks all actress pages; FAV=0 skips; ONLY_FAV=1 runs favorites only; FAV_SLUG=<slug> crawls just that actress).
       To add an actress: append to data/favorites.json, then run FAV_FULL=1 python3 deploy.py\n    Sample stills: fetch_samples() pulls official DMM {cid}jp-N.jpg into public/samples/{CODE}/ (never magnets/video).\n      Normal Wed/Fri scrape already fetches samples for new releases + refreshed fav works.\n      Backfill: SAMPLES_ONLY=1 SAMPLES_N=20 SAMPLES_FAV=8 python3 scrape.py  -> public/samples.json
  2. Build bundle in /workspace/jav-b64: <sha1>.b64 per file + manifest.json ([{file,sha,size}]),
-    files = contents of public/ at root + vercel.json (noindex headers, cleanUrls; no build).
+    files = contents of public/ at root (excludes public/covers, public/thumbs, public/samples — served from Blob) + vercel.json + api/.
  3. Deploy:
     a) If VERCEL_TOKEN env is set: uploads via REST (POST /v2/files) and creates a production deployment (POST /v13/deployments).
     b) Otherwise (agent routine): use the Vercel MCP connector (namespace user-Vercel), NO teamId/slug param:
@@ -24,9 +24,17 @@ Steps:
 import os,sys,json,hashlib,base64,subprocess,urllib.request
 ROOT=os.path.dirname(os.path.abspath(__file__)); OUT="/workspace/jav-b64"
 VJSON={"cleanUrls":True,"headers":[{"source":"/(.*)","headers":[{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},{"source":"/covers/(.*)","headers":[{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}]},{"source":"/thumbs/(.*)","headers":[{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}]},{"source":"/samples/(.*)","headers":[{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}]},{"source":"/data.json","headers":[{"key":"Cache-Control","value":"public, max-age=300"}]},{"source":"/fav.json","headers":[{"key":"Cache-Control","value":"public, max-age=300"}]},{"source":"/samples.json","headers":[{"key":"Cache-Control","value":"public, max-age=300"}]}]}
+# Static images are served from Vercel Blob (public/asset-base.json); do not ship local JPEG trees.
+DEPLOY_SKIP_PREFIXES=("covers/","thumbs/","samples/")
 def bundle():
     os.makedirs(OUT,exist_ok=True); pub=os.path.join(ROOT,"public"); api=os.path.join(ROOT,"api")
-    files=[(os.path.relpath(os.path.join(d,f),pub),open(os.path.join(d,f),"rb").read()) for d,_,fs in os.walk(pub) for f in fs if f!="vercel.json"]
+    files=[]
+    for d,_,fs in os.walk(pub):
+        for f in fs:
+            if f=="vercel.json": continue
+            rel=os.path.relpath(os.path.join(d,f),pub).replace("\\","/")
+            if rel.startswith(DEPLOY_SKIP_PREFIXES): continue
+            files.append((rel,open(os.path.join(d,f),"rb").read()))
     if os.path.isdir(api):
         for d,_,fs in os.walk(api):
             for f in fs:
