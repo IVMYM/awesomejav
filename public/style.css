@@ -176,7 +176,8 @@ img{display:block;max-width:100%}
 .dthumbs::-webkit-scrollbar{display:none}
 .dthumbs .dthumb{flex:0 0 58px;width:58px;height:38px;padding:0;border:2px solid transparent;border-radius:7px;overflow:hidden;background:#2a2a2a;opacity:.55}
 .dthumbs .dthumb.on{border-color:var(--pink);opacity:1}
-.dthumbs .dthumb img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.dthumbs .dthumb img,.dthumbs .dthumb .nz,.dthumbs .dthumb .nzb,.dthumbs .dthumb .nzimg{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat}
+.dthumbs .dthumb .nz{position:relative}
 
 /* soft placeholders / broken images */
 .vcard .thumb,.ahcard .av,.fitem .av,.fwork img,.fwork .nocover,.car{background:#e8eaed}
@@ -260,7 +261,7 @@ img.broken{display:none!important}
    No blur/filter/scale transforms — those blank or break compositing on iOS. */
 .nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .nz .nzb{display:block;width:100%;height:100%;position:relative}
-.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.38}
+.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.55}
 .nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;opacity:.28}
 .nz.on{cursor:inherit}
 .nz.on .nzimg,.nz.on .nzb>img,.nz.on img{opacity:1}

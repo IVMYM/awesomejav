@@ -213,10 +213,11 @@ async function copyText(text){
 
 function gallerySlides(i,userRows){
   const slides=[];
-  if(hasCover(i))slides.push({src:full(i.cover),kind:'cover'});
+  const coverSrc=hasCover(i)?full(i.cover):'';
+  if(coverSrc)slides.push({src:coverSrc,kind:'cover'});
   for(const s of samplesFor(i)){
     const u=full(s);
-    if(u&&!slides.some(x=>x.src.split('?')[0]===u.split('?')[0]))slides.push({src:u,kind:'sample'});
+    if(u&&!slides.some(x=>x.src.split('?')[0]===u.split('?')[0]))slides.push({src:u,kind:'sample',fb:coverSrc});
   }
   for(const r of (userRows||[])){
     if(!r)continue;
@@ -226,12 +227,34 @@ function gallerySlides(i,userRows){
   }
   return slides;
 }
+/** Probe URL with Image(); CSS background-image has no onerror. */
+function probeUrl(url,ms=3500){
+  return new Promise(res=>{
+    if(!url){res(false);return}
+    if(/^(data:|blob:)/i.test(url)){res(true);return}
+    const im=new Image();
+    let done=false;
+    const finish=ok=>{if(done)return;done=true;clearTimeout(t);res(!!ok)};
+    const t=setTimeout(()=>finish(false),ms);
+    im.onload=()=>finish(true);
+    im.onerror=()=>finish(false);
+    im.src=url;
+  });
+}
+/** Drop 404 sample/cover slides so gallery never shows black NSFW slabs. */
+async function keepExistingSlides(slides){
+  const flags=await Promise.all(slides.map(sl=>{
+    if(sl.kind==='mine')return Promise.resolve(true);
+    return probeUrl(sl.src);
+  }));
+  return slides.filter((_,i)=>flags[i]);
+}
 function slideHtml(sl,k,code){
   const badge=sl.kind==='mine'?`<span class="mine-badge">我的</span>`:'';
   const del=sl.kind==='mine'?`<button type="button" class="slide-del" data-del="${esc(sl.id)}" aria-label="删除">×</button>`:'';
   return `<div class="dslide" data-kind="${esc(sl.kind)}" ${sl.id?`data-id="${esc(sl.id)}"`:''}>
       ${badge}${del}
-      ${nz(safeImg(sl.src,`loading="${k?'lazy':'eager'}" alt="${esc(code)} ${k+1}"`)).replace('<span class="nz"',`<span class="nz" data-k="g${k}"`)}
+      ${nz(safeImg(sl.src,`loading="${k?'lazy':'eager'}" alt="${esc(code)} ${k+1}"`,sl.fb||'')).replace('<span class="nz"',`<span class="nz" data-k="g${k}"`)}
     </div>`;
 }
 
@@ -1150,22 +1173,37 @@ async function renderDetailGallery(i){
   stopGalAuto();
   let userRows=[];
   try{if(Auth.current()&&typeof Uploads!=='undefined')userRows=await Uploads.list(Auth.current(),i.code)}catch(_){}
-  const slides=gallerySlides(i,userRows);
-  if(!slides.length){
-    wrap.innerHTML=hasCover(i)?nz(safeImg(full(i.cover),`class="cover" loading="eager" alt="${esc(i.code)}"`)):'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
-    _galCtl=null;return;
-  }
-  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<span class="nzimg" role="img" style="background-image:${cssUrl(sl.src)}"></span>`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`).join('')}</div>`:'';
-  wrap.innerHTML=`<div class="dgallery" id="dgal">
+  const raw=gallerySlides(i,userRows);
+  const coverFb=hasCover(i)?full(i.cover):'';
+  const paint=slides=>{
+    if(!wrap.isConnected)return;
+    if(!slides.length){
+      wrap.innerHTML=coverFb
+        ?nz(safeImg(coverFb,`class="cover" loading="eager" alt="${esc(i.code)}"`))
+        :'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
+      _galCtl=null;return;
+    }
+    const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>{
+      const bg=(sl.kind==='sample'&&coverFb)?cssUrls(sl.src,coverFb):cssUrl(sl.src);
+      return `<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<span class="nzimg" role="img" style="background-image:${bg}"></span>`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`;
+    }).join('')}</div>`:'';
+    wrap.innerHTML=`<div class="dgallery" id="dgal">
       <div class="dtrack">${slides.map((sl,k)=>slideHtml(sl,k,i.code)).join('')}</div>
       <div class="dcounter"><span id="dcur">1</span>/${slides.length}</div>
     </div>${thumbs}`;
-  $$('[data-del]').forEach(b=>b.onclick=async e=>{
-    e.preventDefault();e.stopPropagation();
-    if(!confirm('删除这张我的截图？'))return;
-    try{await Uploads.remove(b.dataset.del);await renderDetailGallery(i)}catch(err){alert(err.message||String(err))}
-  });
-  _galCtl=initDetailGallery();
+    $$('[data-del]').forEach(b=>b.onclick=async e=>{
+      e.preventDefault();e.stopPropagation();
+      if(!confirm('删除这张我的截图？'))return;
+      try{await Uploads.remove(b.dataset.del);await renderDetailGallery(i)}catch(err){alert(err.message||String(err))}
+    });
+    _galCtl=initDetailGallery();
+  };
+  // Instant: cover + uploads only (samples often 404 until uploaded)
+  const instant=raw.filter(s=>s.kind!=='sample');
+  if(instant.length)paint(instant);
+  else wrap.innerHTML='<div class="dgallery empty-gal"><div class="ph">加载图片…</div></div>';
+  const slides=await keepExistingSlides(raw);
+  paint(slides);
 }
 function initDetailGallery(){
   const gal=$('#dgal');if(!gal)return null;
