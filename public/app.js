@@ -26,21 +26,22 @@ function full(path){
   let p=String(path).split('?')[0].replace(/^\.\//,'').replace(/^\//,'');
   return '/'+p+q;
 }
+/** CSS url() safe inside double-quoted HTML style="..." (must use &quot;, not raw "). */
+function cssUrl(u){return `url(&quot;${esc(u)}&quot;)`}
+function cssUrls(...us){return us.filter(Boolean).map(cssUrl).join(',')}
 /** Poster-wall / card media: CSS background-image (no Safari broken-image ❓). */
 function imgTag(src,extra='',fb=''){
   if(!src)return'';
-  const urls=[src,fb].filter(Boolean).map(u=>`url("${esc(u)}")`).join(',');
   // extra kept for API compat (loading= ignored — bg images load with element)
-  return nz(`<span class="nzimg" role="img" style="background-image:${urls}"></span>`);
+  return nz(`<span class="nzimg" role="img" style="background-image:${cssUrls(src,fb)}"></span>`);
 }
-/** Detail / gallery <img> with safe onerror (never leave browser ❓). */
+/** Detail / gallery: also background-image — never leave browser ❓ on iOS. */
 function safeImg(src,extra='',fb=''){
   if(!src)return'';
-  const load=/loading=/.test(extra)?'':'loading="lazy"';
-  const err=fb
-    ?`onerror="if(!this.dataset.tried){this.dataset.tried=1;this.src='${esc(fb)}'}else{this.onerror=null;this.classList.add('broken');this.removeAttribute('src')}"`
-    :`onerror="this.onerror=null;this.classList.add('broken');this.removeAttribute('src')"`;
-  return `<img ${load} decoding="async" src="${esc(src)}" alt="" ${err} ${extra}>`;
+  const cls=(/class="([^"]*)"/.exec(extra)||[])[1]||'';
+  const al=(/alt="([^"]*)"/.exec(extra)||[])[1]||'';
+  const klass=['nzimg',cls].filter(Boolean).join(' ');
+  return `<span class="${klass}" role="img" ${al?`aria-label="${al}"`:''} style="background-image:${cssUrls(src,fb)}"></span>`;
 }
 /** NSFW: every work image is blurred + labelled until tapped once (per image, per page view). */
 const nz=(img,cls='')=>`<span class="nz${cls?' '+cls:''}"><span class="nzb">${img}</span><b class="nzl">NSFW<small>点击查看</small></b></span>`;
@@ -563,9 +564,8 @@ function memStartRound(){
 function memCardFaceHtml(c){
   const f=c.face;
   if(f.kind==='emoji')return`<span class="mem-emoji">${f.emoji}</span>`;
-  const urls=[f.src,f.fb].filter(Boolean).map(u=>`url("${esc(u)}")`).join(',');
   // clear thumb for playability (reward/punish still use NSFW overlay)
-  return`<span class="mem-face-img" role="img" style="background-image:${urls}"></span>`;
+  return`<span class="mem-face-img" role="img" style="background-image:${cssUrls(f.src,f.fb)}"></span>`;
 }
 function memBoardHtml(r){
   const cells=r.cards.map((c,i)=>{
@@ -989,7 +989,7 @@ function favPage(slug){
   const backHref=f.local?'javascript:history.back()':'#/fav';
   const backLabel=f.local?'← 返回':'← 精选女优';
   $('#app').innerHTML=`<div class="page"><a class="back" href="${backHref}">${backLabel}</a>
-    <div class="actor-hero">${hero?nz(`<span class="nzimg" role="img" style="background-image:url(&quot;${esc(hero)}&quot;)" aria-label="${esc(f.name)}"></span>`):'<div class="actor-hero-ph">暂无封面</div>'}</div>
+    <div class="actor-hero">${hero?nz(`<span class="nzimg" role="img" style="background-image:${cssUrl(hero)}" aria-label="${esc(f.name)}"></span>`):'<div class="actor-hero-ph">暂无封面</div>'}</div>
     <div class="page-h"><div><h1>${esc(f.name)}${f.kind==='male'?' <span class="mbadge">男优</span>':''}${f.local?' <span class="badge">专辑</span>':''}</h1>
     <div class="sub">${esc((f.aliases||[]).join(' / ')||(f.local?'由作品自动生成':''))} · ${cnt}</div></div>
     <button class="btn btn-sm ${on?'btn-pink':'btn-outline'}" data-follow="${esc(f.slug)}">${on?'已关注':'关注'}</button></div>
@@ -1155,7 +1155,7 @@ async function renderDetailGallery(i){
     wrap.innerHTML=hasCover(i)?nz(safeImg(full(i.cover),`class="cover" loading="eager" alt="${esc(i.code)}"`)):'<div class="dgallery empty-gal"><div class="ph">暂无封面</div></div>';
     _galCtl=null;return;
   }
-  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<span class="nzimg" role="img" style="background-image:url(&quot;${esc(sl.src)}&quot;)"></span>`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`).join('')}</div>`:'';
+  const thumbs=slides.length>1?`<div class="dthumbs" id="dthumbs">${slides.map((sl,k)=>`<button type="button" class="dthumb" data-k="${k}" aria-label="第 ${k+1} 张">${nz(`<span class="nzimg" role="img" style="background-image:${cssUrl(sl.src)}"></span>`,'mini').replace('<span class="nz',`<span data-k="g${k}" class="nz`)}</button>`).join('')}</div>`:'';
   wrap.innerHTML=`<div class="dgallery" id="dgal">
       <div class="dtrack">${slides.map((sl,k)=>slideHtml(sl,k,i.code)).join('')}</div>
       <div class="dcounter"><span id="dcur">1</span>/${slides.length}</div>

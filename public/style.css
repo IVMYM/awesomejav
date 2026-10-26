@@ -150,7 +150,7 @@ img{display:block;max-width:100%}
 
 /* detail */
 .detail{padding:0 0 20px}
-.detail .cover{width:100%;aspect-ratio:16/10;object-fit:cover;background:#222}
+.detail .cover,.detail .nzimg.cover{width:100%;aspect-ratio:16/10;object-fit:cover;background-color:#222;background-size:cover;background-position:center;background-repeat:no-repeat;display:block}
 .detail .body{padding:14px 16px}
 .detail .code{color:var(--pink);font-weight:700;font-size:14px}
 .detail h1{font-size:18px;margin:4px 0 8px;line-height:1.4}
@@ -170,7 +170,7 @@ img{display:block;max-width:100%}
 .dgallery{position:relative;width:100%;aspect-ratio:16/10;background:#111;overflow:hidden;user-select:none;touch-action:pan-y}
 .dgallery .dtrack{display:flex;height:100%;transition:transform .28s ease;will-change:transform}
 .dgallery .dslide{min-width:100%;height:100%}
-.dgallery .dslide img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+.dgallery .dslide img,.dgallery .dslide .nzimg{width:100%;height:100%;object-fit:cover;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat;display:block}
 .dgallery .dcounter{position:absolute;right:10px;top:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 8px;border-radius:10px;z-index:2}
 .dthumbs{display:flex;gap:6px;overflow-x:auto;padding:8px 10px 10px;background:#111;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .dthumbs::-webkit-scrollbar{display:none}
@@ -260,11 +260,11 @@ img.broken{display:none!important}
    No blur/filter/scale transforms — those blank or break compositing on iOS. */
 .nz{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:#2b2b2e;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .nz .nzb{display:block;width:100%;height:100%;position:relative}
-.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.28}
+.nz .nzimg{display:block;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#3a3a40;pointer-events:none;opacity:.38}
 .nz .nzb>img,.nz img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;opacity:.28}
 .nz.on{cursor:inherit}
 .nz.on .nzimg,.nz.on .nzb>img,.nz.on img{opacity:1}
-.nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.55);background:rgba(16,16,20,.78);pointer-events:none;user-select:none;-webkit-user-select:none}
+.nz .nzl{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;font-weight:800;font-size:15px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.55);background:rgba(16,16,20,.62);pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-backdrop-filter:none;backdrop-filter:none}
 .nz .nzl small{font-size:10px;font-weight:500;letter-spacing:0;opacity:.9}
 .nz.on .nzl{display:none}
 .nz.mini .nzl{font-size:8px;letter-spacing:0}.nz.mini .nzl small{display:none}
@@ -272,7 +272,7 @@ img.broken{display:none!important}
 .fwork>.nz .nzimg,.fwork>.nz img{border-radius:0}
 .detail #dgal-wrap>.nz{position:relative;inset:auto;height:auto;width:100%}
 .detail #dgal-wrap .nzb{height:auto}
-.detail #dgal-wrap .nz img.cover{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover}
+.detail #dgal-wrap .nz img.cover,.detail #dgal-wrap .nz .nzimg.cover{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;background-size:cover;background-position:center}
 .car .slide .nz{position:absolute;inset:0}
 .car .slide .nz .nzl{padding-bottom:28px}
 /* Fill aspect-ratio parents so .nz height:100% is definite on iOS */
