@@ -20,6 +20,7 @@ const Auth = (() => {
     if (Array.isArray(p.follows)) localStorage.setItem(`jav_u_${p.user}_follows`, JSON.stringify(p.follows));
     if (Array.isArray(p.favorites)) localStorage.setItem(`jav_u_${p.user}_favorites`, JSON.stringify(p.favorites));
     if (Array.isArray(p.dislikes)) localStorage.setItem(`jav_u_${p.user}_dislikes`, JSON.stringify(p.dislikes));
+    if (Array.isArray(p.blocked_actresses)) localStorage.setItem(`jav_u_${p.user}_blocked_actresses`, JSON.stringify(p.blocked_actresses));
     if (Array.isArray(p.viewed)) {
       // server list + ops not yet acknowledged (in flight / queued) → never drop local entries
       p.viewed = applyOps(applyOps(normViewed(p.viewed), fly), pend);
@@ -102,6 +103,7 @@ const Auth = (() => {
       const p = await api('/api/me');
       // A PUT finished while this GET was in flight → its body may be stale; keep local lists.
       if (disPending > 0 || seq !== putSeq) p.dislikes = dislikes();
+      if (seq !== putSeq) p.blocked_actresses = blockedActresses();
       if (seq !== putSeq) p.viewed = viewed();
       cacheProfile(p);
       return p;
@@ -155,6 +157,7 @@ const Auth = (() => {
   let putSeq = 0;
   let listTimer = null;
   let wantDislikes = false;
+  let wantBlocked = false;
   let listFails = 0;
   const LIST_DEBOUNCE = 100;
 
@@ -165,6 +168,7 @@ const Auth = (() => {
     const job = chain.then(async () => {
       const body = { follows: follows(), favorites: favorites() };
       if (wantDislikes || disPending > 0) { body.dislikes = dislikes(); wantDislikes = false; }
+      if (wantBlocked) { body.blocked_actresses = blockedActresses(); wantBlocked = false; }
       const ops = takeOps(); if (ops) body.viewedOps = ops;
       let p;
       try {
@@ -172,6 +176,7 @@ const Auth = (() => {
       } catch (e) {
         if (ops) requeue(ops);
         wantDislikes = true;
+        wantBlocked = true;
         if (++listFails <= 4) {
           listTimer = setTimeout(() => { listTimer = null; flushLists().catch(() => {}); }, 800 * listFails);
         } else {
@@ -183,11 +188,13 @@ const Auth = (() => {
       }
       listFails = 0; putSeq++; fly = null;
       // Local is authoritative if the user clicked again while the PUT was in flight.
-      const keepD = dislikes(), keepF = favorites(), keepFo = follows();
-      cacheProfile(Object.assign({}, p, { dislikes: keepD, favorites: keepF, follows: keepFo }));
+      const keepD = dislikes(), keepF = favorites(), keepFo = follows(), keepB = blockedActresses();
+      cacheProfile(Object.assign({}, p, { dislikes: keepD, favorites: keepF, follows: keepFo, blocked_actresses: keepB }));
       const srvD = Array.isArray(p.dislikes) ? p.dislikes : [];
       if (keepD.length !== srvD.length || keepD.some((x, i) => x !== srvD[i])) wantDislikes = true;
-      if (wantDislikes && !listTimer) schedulePersist({ dislikes: true });
+      const srvB = Array.isArray(p.blocked_actresses) ? p.blocked_actresses : [];
+      if (keepB.length !== srvB.length || keepB.some((x, i) => x !== srvB[i])) wantBlocked = true;
+      if ((wantDislikes || wantBlocked) && !listTimer) schedulePersist({ dislikes: wantDislikes, blocked: wantBlocked });
       return p;
     });
     chain = job.catch(() => {});
@@ -195,6 +202,7 @@ const Auth = (() => {
   }
   function schedulePersist(opts = {}) {
     if (opts.dislikes) wantDislikes = true;
+    if (opts.blocked) wantBlocked = true;
     if (!current() || !getToken()) return;
     if (listTimer) clearTimeout(listTimer);
     listTimer = setTimeout(() => { listTimer = null; flushLists().catch(() => {}); }, LIST_DEBOUNCE);
@@ -227,6 +235,41 @@ const Auth = (() => {
     return a.includes(vid);
   }
 
+  /* ---- 不感兴趣作品关联的女优名（永久过滤词，取消踩不删除） ---- */
+  function blockedActresses() {
+    const u = current();
+    if (!u) return [];
+    const p = cachedProfile();
+    if (p && p.user === u && Array.isArray(p.blocked_actresses)) return p.blocked_actresses.slice();
+    return loadArr(`jav_u_${u}_blocked_actresses`);
+  }
+  function writeLocalBlockedActresses(arr) {
+    const u = current(); if (!u) return;
+    localStorage.setItem(`jav_u_${u}_blocked_actresses`, JSON.stringify(arr));
+    const p = cachedProfile();
+    if (p && p.user === u) { p.blocked_actresses = arr; localStorage.setItem(CACHE, JSON.stringify(p)); }
+  }
+  const dislikeMeta = { namesOfCode: null, getIsFollowedName: null };
+  function setDislikeMeta(h) { if (h && typeof h === 'object') Object.assign(dislikeMeta, h); }
+  function mergeBlockedFromWork(names) {
+    const isF = dislikeMeta.getIsFollowedName ? dislikeMeta.getIsFollowedName() : (() => false);
+    let a = blockedActresses();
+    const have = new Set(a);
+    let added = false;
+    for (const nm of names || []) {
+      const s = String(nm || '').trim();
+      if (!s || isF(s) || have.has(s)) continue;
+      have.add(s);
+      a.unshift(s);
+      added = true;
+    }
+    if (added) {
+      writeLocalBlockedActresses(a);
+      wantBlocked = true;
+    }
+    return added;
+  }
+
   /* ---- 踩 / 不感兴趣 (normalized 番号, newest first) ---- */
   function dislikes() {
     const u = current();
@@ -247,11 +290,14 @@ const Auth = (() => {
   async function setDislike(code, on) {
     const k = normCode(code); if (!k) return false;
     let a = dislikes().filter(x => x !== k);
-    if (on) a = [k, ...a];
+    if (on) {
+      a = [k, ...a];
+      if (dislikeMeta.namesOfCode) mergeBlockedFromWork(dislikeMeta.namesOfCode(k));
+    }
     writeLocalDislikes(a);
     if (!current() || !getToken()) return on;
     disPending++;
-    schedulePersist({ dislikes: true });
+    schedulePersist({ dislikes: true, blocked: wantBlocked });
     // Clear disPending after the next flush has had a chance to pick it up.
     setTimeout(() => { disPending = Math.max(0, disPending - 1); }, LIST_DEBOUNCE + 50);
     return on;
@@ -369,7 +415,7 @@ const Auth = (() => {
   function viewedPending() { return !opsEmpty(pend) || !opsEmpty(fly); }
   if (typeof addEventListener === 'function') {
     const bye = () => {
-      const pendingLists = !!listTimer || wantDislikes;
+      const pendingLists = !!listTimer || wantDislikes || wantBlocked;
       if (listTimer) { clearTimeout(listTimer); listTimer = null; }
       if (pendingLists) flushLists().catch(() => {});
       if (!opsEmpty(pend)) flushViewed(true).catch(() => {});
@@ -386,7 +432,7 @@ const Auth = (() => {
   return {
     current, logout, register, login, refresh, follows, favorites,
     isFollowing, isFavorited, toggleFollow, toggleFavorite, uploads, getToken, cachedProfile,
-    dislikes, isDisliked, setDislike, toggleDislike, normCode,
+    dislikes, isDisliked, setDislike, toggleDislike, setDislikeMeta, blockedActresses, normCode,
     viewed, isViewed, viewedSet, addViewed, removeViewed, clearViewed, flushViewed, viewedPending,
   };
 })();

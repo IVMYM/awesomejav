@@ -28,6 +28,14 @@
     }
     return P;
   }
+  /** Hard-hide if any actress name is in blocked (Set of strings). Followed actresses exempt. */
+  function blockedByActress(i, blocked, isFollowedName) {
+    if (!blocked || !blocked.size || !i) return false;
+    const ns = namesOf(i);
+    if (isFollowedName && ns.some(isFollowedName)) return false;
+    for (const nm of ns) if (blocked.has(nm)) return true;
+    return false;
+  }
   function penalty(i, P, isFollowedName) {
     if (!P || !P.n || !i) return 0;
     const ns = namesOf(i);
@@ -39,12 +47,12 @@
     let t = ov.length >= W.tagMin ? ov.reduce((x, g) => x + Math.min(1, P.tags.get(g) / P.n), 0) * W.tag : 0;
     return Math.min(a, W.actorCap) + Math.min(s, W.seriesCap) + Math.min(st, W.studioCap) + Math.min(t, W.tagCap);
   }
-  /** Home sections. opt: {dislikes:Set(normCode), viewed:Set(normCode), profile, isFollowedName, hasCover, heat:Map(code->n)}.
-   * Disliked / suppressed / penalty>=hard never shown; others stable-sorted by penalty (pushed back);
+  /** Home sections. opt: {dislikes:Set(normCode), blockedActresses:Set(name), viewed:Set(normCode), profile, isFollowedName, hasCover, heat:Map(code->n)}.
+   * Disliked / blocked actress / suppressed / penalty>=hard never shown; others stable-sorted by penalty (pushed back);
    * sections never share a 番号. */
   function buckets(items, opt) {
     opt = opt || {};
-    const dis = opt.dislikes || new Set(), seenV = opt.viewed || new Set(), P = opt.profile, isF = opt.isFollowedName || (() => false);
+    const dis = opt.dislikes || new Set(), blk = opt.blockedActresses || new Set(), seenV = opt.viewed || new Set(), P = opt.profile, isF = opt.isFollowedName || (() => false);
     const hasCover = opt.hasCover || (i => !!i.cover), heat = opt.heat || new Map();
     const K = i => normCode(i.code) || String(i.vid);
     const pen = new Map();
@@ -56,7 +64,7 @@
       const k = K(i);
       if (seen.has(k)) continue; seen.add(k);
       if (seenV.has(k)) { viewedHidden++; continue; } // 已浏览: never re-shown on home
-      if (dis.has(k) || i.suppressed || pen.get(i) >= W.hard) { hidden++; continue; }
+      if (dis.has(k) || i.suppressed || blockedByActress(i, blk, isF) || pen.get(i) >= W.hard) { hidden++; continue; }
       ok.push(i);
     }
     const hotPicks = pushBack(ok.filter(i => i.hot).sort((a, b) => (b.hot.batch || '').localeCompare(a.hot.batch || '') || (b.hot.score || 0) - (a.hot.score || 0)));
@@ -77,7 +85,7 @@
    *          rest: everything else, fallback order (cover, heat, date)}. Same 踩/已浏览 filtering as home. */
   function weekHot(all, opt) {
     opt = opt || {};
-    const dis = opt.dislikes || new Set(), seenV = opt.viewed || new Set(), P = opt.profile, isF = opt.isFollowedName || (() => false);
+    const dis = opt.dislikes || new Set(), blk = opt.blockedActresses || new Set(), seenV = opt.viewed || new Set(), P = opt.profile, isF = opt.isFollowedName || (() => false);
     const hasCover = opt.hasCover || (i => !!i.cover), heat = opt.heat || new Map(), wk = opt.week || {};
     const K = i => normCode(i.code) || String(i.vid);
     const wmap = new Map(); for (const c in wk) wmap.set(normCode(c), wk[c]);
@@ -85,7 +93,7 @@
     for (const i of all) {
       const k = K(i); if (seen.has(k)) continue; seen.add(k);
       if (seenV.has(k)) { viewedHidden++; continue; }
-      if (dis.has(k) || i.suppressed || penalty(i, P, isF) >= W.hard) { hidden++; continue; }
+      if (dis.has(k) || i.suppressed || blockedByActress(i, blk, isF) || penalty(i, P, isF) >= W.hard) { hidden++; continue; }
       ok.push(i);
     }
     const ws = i => wmap.get(K(i));
@@ -95,7 +103,7 @@
     const rest = ok.filter(i => !ws(i)).sort((a, b) => sc(b) - sc(a));
     return { week, rest, hidden, viewedHidden, wscore: ws };
   }
-  const api = { GENERIC, W, normCode, namesOf, specificTags, buildProfile, penalty, buckets, weekHot };
+  const api = { GENERIC, W, normCode, namesOf, specificTags, buildProfile, penalty, blockedByActress, buckets, weekHot };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rank = api;
 })(typeof window !== 'undefined' ? window : globalThis);

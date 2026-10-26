@@ -540,7 +540,12 @@ function followedNameFn(){
 function dislikeCtx(){
   const isF=followedNameFn();
   const codes=Auth.dislikes();
-  return {dislikes:new Set(codes.map(normCode)),viewed:Auth.viewedSet(),profile:Rank.buildProfile(codes,workByCode,isF),isFollowedName:isF,hasCover};
+  return {dislikes:new Set(codes.map(normCode)),blockedActresses:new Set(Auth.blockedActresses()),viewed:Auth.viewedSet(),profile:Rank.buildProfile(codes,workByCode,isF),isFollowedName:isF,hasCover};
+}
+function workBlockedByActress(w,ctx){
+  ctx=ctx||dislikeCtx();
+  if(!ctx.blockedActresses.size)return false;
+  return Rank.blockedByActress(w,ctx.blockedActresses,ctx.isFollowedName);
 }
 function homeBuckets(heat){
   return Rank.buckets(items,Object.assign(dislikeCtx(),{heat:heat||new Map()}));
@@ -573,9 +578,10 @@ const SLOT_FRUITS=['🍒','🍋','🍊','🍉','🍇','🍓'];
 const MEM_PAIRS=6;          // 4×3 网格
 const MEM_MAX_MISS=8;       // 超过则惩罚
 function gamePool(){
-  const vs=Auth.viewedSet(),dis=new Set(Auth.dislikes().map(normCode));
+  const ctx=dislikeCtx();
+  const vs=ctx.viewed,dis=ctx.dislikes;
   const all=dedupeByCode([].concat(...favs.map(f=>f.works||[])));
-  return all.filter(w=>{const k=normCode(w.code);return k&&!vs.has(k)&&!dis.has(k)&&!w.suppressed});
+  return all.filter(w=>{const k=normCode(w.code);return k&&!vs.has(k)&&!dis.has(k)&&!w.suppressed&&!workBlockedByActress(w,ctx)});
 }
 function gameSubHtml(){
   return`<div class="gsub" role="tablist" aria-label="游戏模式">
@@ -913,11 +919,12 @@ function bindGame(){
 let agOpen={};
 function featuredGroups({home=false,exclude=null}={}){
   const fl=new Set(Auth.follows());
+  const ctx=home?dislikeCtx():null;
   const vs=Auth.viewedSet(),dis=new Set(Auth.dislikes().map(normCode));
   const gs=favs.map((f,idx)=>{
     const all=dedupeByCode(f.works||[]);
     let works=all;
-    if(home)works=all.filter(w=>{const k=normCode(w.code);return !vs.has(k)&&!dis.has(k)&&!(exclude&&exclude.has(k))});
+    if(home)works=all.filter(w=>{const k=normCode(w.code);return !vs.has(k)&&!dis.has(k)&&!workBlockedByActress(w,ctx)&&!(exclude&&exclude.has(k))});
     return {f,all,works,followed:fl.has(f.slug),idx};
   }).filter(g=>g.works.length);
   // followed first, then by number of works
@@ -1104,6 +1111,16 @@ function meFavorites(){
   bindFavBtns();
 }
 
+function dislikesSubText(){
+  return `${Auth.dislikes().length} 部 · 首页不再出现 · 女优名留作过滤词，同女优不再推荐`;
+}
+function blockedActressChipsHtml(){
+  const names=Auth.blockedActresses();
+  if(!names.length)return'';
+  const show=names.slice(0,48);
+  const more=names.length-show.length;
+  return`<div class="blocked-chips"><div class="blocked-chips-h">过滤女优 ${names.length}</div><div class="blocked-chips-row">${show.map(n=>`<span class="act-chip">${esc(n)}</span>`).join('')}${more?`<span class="blocked-more">+${more}</span>`:''}</div></div>`;
+}
 function meDislikes(){
   setTab('me');clearInterval(timer);stopGalAuto();chip();
   const codes=Auth.dislikes();
@@ -1112,8 +1129,9 @@ function meDislikes(){
     const body=`<div class="dav">${th}</div><div class="bd"><div class="nm">${esc(w?w.code:c)}</div><div class="meta">${esc(w?short(w.title,40):'（不在当前片库）')}</div><div class="meta">${esc(w?names(w).join(' / '):'')}</div></div>`;
     return `<div class="disitem" data-row="${esc(c)}">${L?`<a class="dlink" href="#/v/${w.vid}">${body}</a>`:`<div class="dlink">${body}</div>`}<button type="button" class="btn btn-sm btn-outline" data-undisl="${esc(c)}">取消</button></div>`};
   $('#app').innerHTML=`<div class="page"><a class="back" href="#/me">← 我的</a>
-    <div class="page-h"><div><h1>不感兴趣</h1><div class="sub">${codes.length} 部 · 首页不再出现，同演员/系列/相近标签的作品会靠后</div></div></div>
-    ${codes.length?`<div class="dislist">${codes.map(row).join('')}</div>`:`<div class="empty"><div class="big">👍</div><p>还没有踩过的作品</p><p style="font-size:12px">在作品卡片左上角点 👎 或详情页点「不感兴趣」</p></div>`}
+    <div class="page-h"><div><h1>不感兴趣</h1><div class="sub">${dislikesSubText()}</div></div></div>
+    ${blockedActressChipsHtml()}
+    ${codes.length?`<div class="dislist">${codes.map(row).join('')}</div>`:`<div class="empty"><div class="big">👍</div><p>还没有踩过的作品</p><p style="font-size:12px">在作品卡片左上角点 👎 或详情页点「不感兴趣」；女优名将加入过滤，同女优作品不再推荐</p></div>`}
   </div>`;
   $$('[data-undisl]').forEach(b=>b.onclick=async e=>{
     e.preventDefault();e.stopPropagation();
@@ -1121,7 +1139,7 @@ function meDislikes(){
     try{await Auth.setDislike(c,false)}catch(err){b.disabled=false;toast('保存失败：'+(err.message||err));return}
     bumpView('#/');bumpView(viewKey('#/'));
     const r=b.closest('.disitem');if(r){r.classList.add('dis-out');setTimeout(()=>{if(r.isConnected)r.remove()},260)}
-    const sub=$('.page-h .sub');if(sub)sub.textContent=`${Auth.dislikes().length} 部 · 首页不再出现，同演员/系列/相近标签的作品会靠后`;
+    const sub=$('.page-h .sub');if(sub)sub.textContent=dislikesSubText();
     toast(`已取消 ${c}`,{label:'撤销',fn:async()=>{try{await Auth.setDislike(c,true)}catch(_){}bumpView('#/');meDislikes()}});
   });
 }
@@ -1556,6 +1574,10 @@ async function boot(){
     // Critical path only — never block first paint on auth or fav.json
     const d=await Promise.all([loadAssetBase(),fetchJson('data.json?t='+Date.now(),15000)]).then(([,data])=>data);
     items=dedupeByCode(d.items||[]);
+    if(Auth.setDislikeMeta)Auth.setDislikeMeta({
+      namesOfCode:c=>{const w=workByCode(c);return w?Rank.namesOf(w):[]},
+      getIsFollowedName:()=>followedNameFn(),
+    });
   }catch(err){
     const msg=err&&err.name==='AbortError'?'加载超时，请检查网络':(err&&err.message?err.message:String(err));
     if($('#app'))$('#app').innerHTML=`<div class="empty"><div class="big">😵</div><p>加载失败</p><p style="font-size:12px;color:var(--muted)">${esc(msg)}</p><button class="btn btn-pink" style="margin-top:12px" onclick="location.reload()">重试</button></div>`;

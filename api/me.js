@@ -13,6 +13,7 @@ module.exports = async (req, res) => {
       if (Array.isArray(body.follows)) user.follows = [...new Set(body.follows.map(String))];
       if (Array.isArray(body.favorites)) user.favorites = [...new Set(body.favorites.map(String))];
       if (Array.isArray(body.dislikes)) user.dislikes = L.normDislikes(body.dislikes);
+      if (Array.isArray(body.blocked_actresses)) user.blocked_actresses = L.normBlockedActresses(body.blocked_actresses);
       if (Array.isArray(body.viewed)) user.viewed = L.normViewed(body.viewed);
       if (body.viewedOps && typeof body.viewedOps === 'object') user.viewed = L.applyViewedOps(user.viewed, body.viewedOps);
       await L.saveUser(username, user);

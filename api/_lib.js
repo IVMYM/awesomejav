@@ -58,6 +58,19 @@ function normDislikes(arr) {
   return out;
 }
 
+/** Blocked actress names from dislikes: trimmed strings, unique, order preserved. */
+function normBlockedActresses(arr) {
+  const out = [];
+  const seen = new Set();
+  for (const s of Array.isArray(arr) ? arr : []) {
+    const n = String(s || '').trim();
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out;
+}
+
 /** 已浏览: [{c: normCode, t: ms}] unique by code (max t wins), newest first, capped.
  *  Accepts strings, {c,t} / {code,t}, or [c,t]. */
 const MAX_VIEWED = 3000;
@@ -360,6 +373,7 @@ function profile(username, user) {
     favorites: Array.isArray(user.favorites) ? user.favorites : [],
     uploads: Array.isArray(user.uploads) ? user.uploads : [],
     dislikes: Array.isArray(user.dislikes) ? user.dislikes : [],
+    blocked_actresses: normBlockedActresses(user.blocked_actresses),
     viewed: normViewed(user.viewed),
   };
 }
@@ -389,6 +403,7 @@ module.exports = {
   safeCode,
   normCode,
   normDislikes,
+  normBlockedActresses,
   normViewed,
   applyViewedOps,
   json,
