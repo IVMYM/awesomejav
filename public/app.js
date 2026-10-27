@@ -3,7 +3,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const hasCover=i=>i&&i.cover&&(i.cover_src==='r18'||i.cover_src==='dmm');
 const names=i=>(i.actresses&&i.actresses.length?i.actresses.map(a=>a.name):i.actresses_list||[]);
 const short=(s,n=36)=>{s=String(s||'');return s.length>n?s.slice(0,n)+'…':s};
-/** Vercel Blob public origin for covers/thumbs/samples (see public/asset-base.json). Empty = same-origin /public. */
+/** Cloudflare R2 public origin for covers/thumbs/samples (see public/asset-base.json). Empty = same-origin /public. */
 let ASSET_BASE='';
 function isAbsUrl(u){return /^https?:\/\//i.test(String(u||''));}
 function relPath(path){
