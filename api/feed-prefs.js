@@ -15,24 +15,6 @@ function keyOk(req) {
   return crypto.timingSafeEqual(a, b);
 }
 
-async function listAll(prefix) {
-  const out = [];
-  let cursor = '';
-  for (let guard = 0; guard < 50; guard++) {
-    const params = new URLSearchParams({ prefix, limit: '1000' });
-    if (cursor) params.set('cursor', cursor);
-    const res = await fetch(`https://vercel.com/api/blob?${params}`, {
-      headers: { authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`, 'x-api-version': '12' },
-    });
-    if (!res.ok) throw Object.assign(new Error(`blob list ${res.status}`), { status: 502 });
-    const d = await res.json();
-    out.push(...(d.blobs || []));
-    if (!d.hasMore || !d.cursor) break;
-    cursor = d.cursor;
-  }
-  return out;
-}
-
 function slugName(slug) {
   // n-<hex of utf8 name, first 40 hex chars> → (possibly truncated) name prefix
   const m = /^n-([0-9a-f]+)$/.exec(String(slug || ''));
@@ -51,7 +33,7 @@ module.exports = async (req, res) => {
     if (req.method !== 'GET') return L.json(res, 405, { error: 'method not allowed' });
     if (!keyOk(req)) return L.json(res, 401, { error: 'unauthorized' });
     // newest blob per user (users/{name}/{ts}.json), legacy users/{name}.json as fallback
-    const blobs = await listAll('users/');
+    const blobs = await L.blobListAll('users/');
     const per = new Map();
     for (const b of blobs) {
       const p = String(b.pathname || '');
@@ -60,12 +42,11 @@ module.exports = async (req, res) => {
       if (!m) continue;
       const t = new Date(b.uploadedAt || 0).getTime() + (legacy ? -1e15 : 0);
       const o = per.get(m[1]);
-      if (!o || t > o.t) per.set(m[1], { t, url: b.url || L.publicUrl(p) });
+      if (!o || t > o.t) per.set(m[1], { t, pathname: p });
     }
-    const users = await Promise.all([...per.values()].map(async ({ url }) => {
+    const users = await Promise.all([...per.values()].map(async ({ pathname }) => {
       try {
-        const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
-        return r.ok ? r.json() : null;
+        return await L.blobGetJsonFresh(pathname);
       } catch { return null; }
     }));
     const disCnt = new Map(), viewCnt = new Map(), blockedCnt = new Map(), follows = new Set();

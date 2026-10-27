@@ -44,10 +44,14 @@ async function writeCache(code, source, fields) {
     updatedAt: Date.now(),
     ...fields,
   };
-  await L.blobPut(magnetCachePath(code, source), JSON.stringify(payload), {
-    contentType: 'application/json',
-    allowOverwrite: true,
-  });
+  try {
+    await L.blobPut(magnetCachePath(code, source), JSON.stringify(payload), {
+      contentType: 'application/json',
+      allowOverwrite: true,
+    });
+  } catch (_) {
+    /* cache optional — upstream results still returned */
+  }
   return payload;
 }
 
